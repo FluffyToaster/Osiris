@@ -1106,9 +1106,11 @@ class mainUI:
 
     def gpbackgroundlogin(s):
         global gplogin
-        try: gptemp = api.login(settings["gpemail"], gppass, Mobileclient.FROM_MAC_ADDRESS)
-        except:
+        try:
+            gptemp = api.login(settings["gpemail"], gppass, settings["gpMAC"])
+        except Exception as e:
             s.gploginreq.configure(text="LOGIN FAILED")
+            print(e)
             return
         gplogin = gptemp
         OSI.log("OSI: GP logged in")
@@ -1230,6 +1232,26 @@ class mainUI:
     def switchSetting(s,key):
         settings[key] = str(settings[key] == "False")
         s.updateSettings()
+
+    def cycleSetting(s,key,optionskey): # cycle through a list of options, setting key to the value that comes after the current one
+        options = settings[optionskey].split(";")
+        current = settings[key]
+        if current in options:
+            next = options[(options.index(current) + 1) % len(options)]
+        else:
+            next = settings[0]
+        settings[key] = next
+        s.updateSettings()
+
+    def gitGetEmail(s): # update settings according to git email
+        pipe = subprocess.Popen("git config user.email", shell=True, stdout=subprocess.PIPE).stdout
+        output = str(pipe.read(), "utf-8").rstrip("\n\r")
+        settings["git_email"] = output
+        s.updateSettings()
+
+    def gitSetEmail(s): # update git email according to settings
+        subprocess.Popen("git config --global user.email "+settings["git_email"])
+        s.updateSettings
 
     def updateSettings(s):
         for i in s.stWidgets: i.update()
@@ -1401,8 +1423,9 @@ class gpLine: # !!! move to below music classes when done
 
 
 class stWidget:
-    def __init__(s,key,label,col,row,type): # internal settings key, label for user, column in stframe, row in stframe, type of setting (text, bool, file, folder)
+    def __init__(s,key,label,col,row,type,altkey=None): # internal settings key, label for user, column in stframe, row in stframe, type of setting (text, bool, file, folder)
         s.key = key
+        s.altkey = altkey
         s.type = type
         s.mainframe = tk.Frame(OSI.stframe,bg=tkbuttoncolor,width=300,height=20,bd=0,highlightbackground=tkbgcolor3,highlightcolor=tkbgcolor3,highlightthickness=2)
         s.mainframe.grid(column=col,row=row)
@@ -1417,6 +1440,10 @@ class stWidget:
         elif type == "bool":
             s.switchbutton = tk.Button(s.mainframe,text=settings[key], bg=tkbuttoncolor,width=10,activeforeground=tktxtcol,activebackground=tkbgcolor3,fg=tktxtcol,border=0,font=fontset,command=lambda: OSI.switchSetting(key))
             s.switchbutton.grid(column=1,row=0)
+        elif type == "list":
+            s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=tkbuttoncolor,activeforeground=tktxtcol,activebackground=tkbgcolor3,width=10,fg=tktxtcol,border=0,font=fontset,command=lambda: [OSI.cycleSetting(key,altkey), OSI.gitSetEmail()])
+            s.nextbutton.grid(column=1,row=0, rowspan=2,sticky="NESW")
+
         s.mainframe.grid(column=col,row=row,pady=8,padx=8)
 
     def update(s):
@@ -1516,13 +1543,6 @@ class dbLine: # !!! move to below music classes when done
             s.openbutton.pack(side=RIGHT)
         s.mainframe.pack(side=TOP,fill=X,padx=1,pady=1)
         s.wrapper.pack(side=TOP,pady=(2,0),padx=10,fill=X)
-
-
-
-
-
-
-
 
 class gpLineEmpty: # !!! move to below music classes when done
     def __init__(s,query):
@@ -1673,5 +1693,9 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("set_notitle","Use own title bar instead of windows",0,3,"bool"),
                 stWidget("set_pliduration","Show lengths of playlists in 'pli' menu",0,4,"bool"),
                 stWidget("set_update","Get updates from foobar",0,5,"bool"),
-                stWidget("set_foobarplaying","Show currently playing song",0,6,"bool")]
+                stWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
+                stWidget("git_email","Git Email",1,0,"list","git_emails")]
+
+OSI.gitGetEmail()
+
 root.mainloop()
