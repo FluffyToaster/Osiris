@@ -1239,7 +1239,7 @@ class mainUI:
         if current in options:
             next = options[(options.index(current) + 1) % len(options)]
         else:
-            next = settings[0]
+            next = options[0]
         settings[key] = next
         s.updateSettings()
 
