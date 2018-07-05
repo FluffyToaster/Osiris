@@ -1091,18 +1091,14 @@ class mainUI:
         else:
             s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
             if entry.startswith("d ") and isint(entry.split()[1]): # if entry is delete command
-                try: gp_preq[int(entry.split()[1])-1].remove()
-                except:
-                    try: gp_done[int(entry.split()[1])-1].remove()
-                    except: print("fucky wucky")
+                # del
+                pass
             elif entry == "dl":
-                s.gp_dl_all()
+                pass
+                # download
             elif entry != "":
-                s.log("OSI: Searching GP")
-                gp_results = s.gpsearch(entry) # generates widget upon success
-                if gp_results == False:
-                    pass # DO YT ONLY
-        s.gpupdate()
+                pass
+                # not command
 
     def gpbackgroundlogin(s):
         from gmusicapi import Mobileclient
@@ -1123,7 +1119,6 @@ class mainUI:
         OSI.log("OSI: All systems nominal")
 
     def gpsearch(s,query):
-        print("test 1")
         # perform search of gp database
         try:
             results = api.search(query).get("song_hits",5)[:5]
@@ -1146,30 +1141,7 @@ class mainUI:
                 fltr(str(i.get("beatsPerMinute"))),
                 fltr(str(i.get("genre")))
             ])
-            # generate gpline widget
-        gp_preq.append(gpLine(curinfo))
-        print(gp_preq)
-
-    def gp_dl_all(s):
-        while len(gp_preq) > 0:
-            next_item = gp_preq.pop()
-            gp_q.put(next_item)
-            next_item.queue()
-        s.gp_check_q()
-
-    def gp_check_q(s):
-        global gp_slots
-        # if no songs in queue, slots or converting, we're done
-        s.log("Checking queues")
-        if gp_q.qsize() == 0 and len(gp_slots) == 0 and len(gp_conv) == 0:
-            for i in gp_done:
-                root.after(1000,lambda: i.remove())
-            s.mprefresh()
-        else:
-            while len(gp_slots) < int(settings["gpslots"]):
-                next_item = gp_q.get()
-                gp_slots.append(next_item)
-                next_item.download()
+        # track info received, now to instantiate a class with it
 
     def gpupdate(s):
         # update widgets
