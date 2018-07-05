@@ -1,11 +1,14 @@
-# Continuation of the first tkinter shell (Helenica), nicknamed Osiris
-# External data file: osData.txt. Follows same data structure as heData
+# Continuation of the first tkinter shell, nicknamed Osiris
 # note that 's.' was used instead of 'self.' because I am an ungodly bastard
 # and / or because I am lazy
 #
 # - RFK 2018 -
 
 # built-in libraries
+import time
+starting_time = time.time()
+def t_since_start(): print(time.time() - starting_time) # call this anywhere to check delays in startup time
+
 import tkinter as tk
 from tkinter import END,LEFT,RIGHT,TOP,BOTTOM,N,E,S,W,NS,CENTER,RAISED,SUNKEN,X,Y,BOTH,filedialog
 import subprocess
@@ -13,7 +16,6 @@ import os
 from random import random
 from io import BytesIO
 import threading
-import time
 import datetime
 import logging # used to quiet gmusicapi warnings
 import queue
@@ -27,7 +29,6 @@ import requests
 from mutagen.mp3 import EasyMP3, MP3
 from mutagen.id3 import ID3, APIC
 from PIL import Image, ImageTk # use Pillow for python 3.x
-from gmusicapi import Mobileclient
 from send2trash import send2trash
 from Crypto.Cipher import AES
 
@@ -482,7 +483,6 @@ class mainUI:
         s.rootframe.pack()
 
         s.select("mp") # should be the last statement in this init
-
         # for i in s.frames:
         #     s.backgroundimage = Image.open("etc/background.png")
         #     s.backgroundphoto = ImageTk.PhotoImage(s.backgroundimage)
@@ -1105,7 +1105,10 @@ class mainUI:
         s.gpupdate()
 
     def gpbackgroundlogin(s):
+        from gmusicapi import Mobileclient
         global gplogin
+        global api
+        api = Mobileclient()
         try:
             gptemp = api.login(settings["gpemail"], gppass, settings["gpMAC"])
         except Exception as e:
@@ -1679,7 +1682,7 @@ OSI.dbrefresh()
 
 OSI.log("OSI: MP and DB loaded")
 
-api = Mobileclient()
+api = None # this is imported asynchronously due to long delay (.6 seconds)
 gplogin = False
 gppass = settings["gppass"]
 threading.Thread(target=OSI.gpbackgroundlogin).start()
@@ -1697,5 +1700,4 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("git_email","Git Email",1,0,"list","git_emails")]
 
 OSI.gitGetEmail()
-
 root.mainloop()
