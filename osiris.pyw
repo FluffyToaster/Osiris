@@ -82,6 +82,9 @@ tkbuttontextcoloract = tktxtcol
 dbdir = "database/"
 enclevel = 3 # depth of Aegis AES-256 ecryption
 
+# gp settings
+DL_ALTERNATIVES = 5
+
 
 # setup
 if not os.path.exists(dbdir):
@@ -93,11 +96,7 @@ dbloc = dbdir
 dbstate = ["browse",[],[],[]] # mode, showlist, pathlist, maplist
 dbkey = False
 dbWidgets = []
-gp_preq = []
-gp_q = queue.Queue()
-gp_slots = []
-gp_conv = []
-gp_done = []
+dlWidgets = [] # list of instantiations of dlLine (or derived classes)
 wkWidgets = []
 
 # make gmusicapi shut up
@@ -324,11 +323,11 @@ class mainUI:
 
         s.mpbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="MUSIC",command=lambda:s.select("mp"))
         s.dbbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="DATABASE",command=lambda:s.select("db"))
-        s.gpbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="DOWNLOAD",command=lambda:s.select("gp"))
+        s.dlbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="DOWNLOAD",command=lambda:s.select("dl"))
         s.wkbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="WORK",command=lambda:s.select("wk"))
         s.stbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="SETTINGS",command=lambda:s.select("st"))
         # list of buttons
-        s.buttonw = [s.mpbutton,s.dbbutton,s.gpbutton,s.wkbutton,s.stbutton]
+        s.buttonw = [s.mpbutton,s.dbbutton,s.dlbutton,s.wkbutton,s.stbutton]
 
         for i in s.buttonw:
             i.pack(side=LEFT, fill=Y)
@@ -349,7 +348,7 @@ class mainUI:
         #  contentwrapperframe
         #   scrollcanvas
         #    contentframe
-        #     ALL FRAME WIDGETS (mp, db, gp)
+        #     ALL FRAME WIDGETS (mp, db, dl)
         s.contentwrapperframe = tk.Frame(s.mainframe,bg=tkbgcolor,height=tkheight-64,width=tkwidth-306)
         s.scrollcanvas = tk.Canvas(s.contentwrapperframe,bg=tkbgcolor,yscrollincrement="1")
         s.scrollcanvas.pack(side=LEFT,fill=BOTH,expand=True)
@@ -408,9 +407,9 @@ class mainUI:
         # s.dbloadreq = tk.Label(s.dbframe,bg=tkbuttoncolor,fg=tktxtcol,font=(fontset[0],"25"),text="ENTER TO LOAD DATABASE")
         # s.dbloadreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
 
-        s.gpframe = tk.Frame(s.contentframe,background=tkbgcolor)
-        s.gploginreq = tk.Label(s.gpframe,bg=tkbuttoncolor,fg=tktxtcol,font=(fontset[0],"25"),text="LOGGING IN, PLEASE WAIT")
-        s.gploginreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
+        s.dlframe = tk.Frame(s.contentframe,background=tkbgcolor)
+        s.dlloginreq = tk.Label(s.dlframe,bg=tkbuttoncolor,fg=tktxtcol,font=(fontset[0],"25"),text="LOGGING IN, PLEASE WAIT")
+        s.dlloginreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
 
         s.wkframe = tk.Frame(s.contentframe,background=tkbuttoncolor)
         s.wkframe.grid_propagate(0)
@@ -469,9 +468,9 @@ class mainUI:
         # list of modes for convenience
 
         # lists of things
-        s.modes = ["mp","db","gp","wk","st"]
-        s.frames = [s.mpframe,s.dbframe,s.gpframe,s.wkframe,s.stframe]
-        s.interpreters = [s.mpinterpret,s.dbinterpret,s.gpinterpret,s.wkinterpret,s.stinterpret]
+        s.modes = ["mp","db","dl","wk","st"]
+        s.frames = [s.mpframe,s.dbframe,s.dlframe,s.wkframe,s.stframe]
+        s.interpreters = [s.mpinterpret,s.dbinterpret,s.dlinterpret,s.wkinterpret,s.stinterpret]
 
         s.focuslist = [s.dbeditor,s.glbentry]
         # commence the pre-op
@@ -1084,8 +1083,7 @@ class mainUI:
 
 
 #################################### DOWNLOAD DEFS #####################################################################
-    def gpinterpret(s,entry):
-        # global gplogin
+    def dlinterpret(s,entry):
         if gplogin != True:
             pass
         else:
@@ -1096,9 +1094,54 @@ class mainUI:
             elif entry == "dl":
                 pass
                 # download
-            elif entry != "":
+            elif entry.startswith("yt"): # yt single song
                 pass
-                # not command
+            elif entry.startswith(("album", "gpalbum")):
+                pass
+            elif entry.startswith(("http://","https://","www.","youtube.com","play.google")):
+                # if true, start parsing URL
+                # remove unnecessary prefixes
+                urlentry = entry
+                for i in ["http://","https://","www.","youtube.com","play.google",".com","/music/"]:
+                    urlentry = urlentry.split(i)[-1]
+
+                # track after parse: m/T2udbfj3fuixwpbos76j7qnixza?t=Let_It_Happen_-_Tame_Impala
+                # pl after parse: playlist/AMaBXymHqRhQ9A79nGWS_zkVJLp-tuk7_neTefL7f8a2nWRi5sonzwZ9cuYyHqGwJQbefA_jcWakZgeiD2FncspLGNRjRSkslg%3D%3D
+                # album after parse: m/Bfinyskmfffl7mnb5gghboinjbu?t=Currents_-_Tame_Impala
+
+                # for GP: note that album ids start with "B" and tracks start with "T"
+                type = "none"
+                id = "-"
+                if "play.google" in entry:
+                    if urlentry.startswith("m/T"): # track URL
+                        id = urlentry[2:].split("?t=")[0]
+                        type = "gp track"
+                    if urlentry.startswith("m/B"): # album URL
+                        id = urlentry[2:].split("?t=")[0]
+                        type = "gp album"
+                    if urlentry.startswith("playlist/"):
+                        id = urlentry[9:-6] + "=="
+                        type = "gp playlist"
+
+                elif "youtube" in entry:
+                    s.log("YT not supported yet")
+                else:
+                    s.log("URL parsing failed")
+                s.log(type)
+                s.log(id)
+                if type == "gp track":
+                    api.get_track_info(id)
+                if type == "gp playlist":
+                    api.get_shared_playlist_contents(id)
+                if type == "gp album":
+                    api.get_album_info(id)
+
+
+            elif entry != "" or entry.startswith("gp "):
+                # not a command or URL: default behaviour is to search GP for single track
+                search_results = s.gpsearch(entry)
+                if search_results != False:
+                    dlWidgets.append(gpTrack(search_results))
 
     def gpbackgroundlogin(s):
         from gmusicapi import Mobileclient
@@ -1108,20 +1151,20 @@ class mainUI:
         try:
             gptemp = api.login(settings["gpemail"], gppass, settings["gpMAC"])
         except Exception as e:
-            s.gploginreq.configure(text="LOGIN FAILED")
+            s.dlloginreq.configure(text="LOGIN FAILED")
             print(e)
             return
         gplogin = gptemp
         OSI.log("OSI: GP logged in")
         if gplogin == True:
-            s.gploginreq.pack_forget()
+            s.dlloginreq.pack_forget()
         time.sleep(1)
         OSI.log("OSI: All systems nominal")
 
     def gpsearch(s,query):
         # perform search of gp database
         try:
-            results = api.search(query).get("song_hits",5)[:5]
+            results = api.search(query).get("song_hits",DL_ALTERNATIVES)[:DL_ALTERNATIVES]
         except IndexError:
             gpLineEmpty(query)
             return False
@@ -1141,14 +1184,9 @@ class mainUI:
                 fltr(str(i.get("beatsPerMinute"))),
                 fltr(str(i.get("genre")))
             ])
-        # track info received, now to instantiate a class with it
+        return curinfo
 
-    def gpupdate(s):
-        # update widgets
-        for i in gp_preq:
-            i.update()
-
-    def gp_url2file(s,url,filename):
+    def dl_url2file(s,url,filename):
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         # open in binary mode
         with open(filename, "wb") as wfile:
@@ -1157,7 +1195,7 @@ class mainUI:
             # write to file
             wfile.write(response.content)
 
-    def gptagify(s,songpath,tinfo):
+    def dltagify(s,songpath,tinfo):
         tagfile = EasyMP3(songpath)
         tagfile["title"] = tinfo[0]
         tagfile["artist"] = tinfo[1]
@@ -1170,7 +1208,7 @@ class mainUI:
         tagfile["genre"] = tinfo[9]
         tagfile.save()
 
-    def gpalbumartify(s,songpath,folderpath):
+    def dlalbumartify(s,songpath,folderpath):
         audio = MP3(songpath, ID3=ID3)
         try:audio.add_tags()
         except:pass
@@ -1234,9 +1272,105 @@ class mainUI:
 
 
     #################################### END OF MAINUI #####################################################################
+
+class dlManager:
+    def __init__(s):
+        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=50)
+        s.state = "waiting"
+
+        s.count_gpcomplete = 0
+        s.count_gptotal = 0
+        s.count_ytcomplete = 0
+        s.count_yttotal = 0
+        s.gptracks = []
+        s.yttracks = []
+        s.staticlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=40)
+        s.staticlabel.pack(side=LEFT)
+        s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28)
+        s.gpstatus.pack(side=LEFT)
+        s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28)
+        s.ytstatus.pack(side=RIGHT)
+        s.refreshvalues()
+        s.mainframe.pack(side=BOTTOM)
+
+    def download(s): # publicly accessible download command that is split into further tasks
+        if len(gptracks) + len(yttracks) > 0:
+            if len(gptracks) > 0:
+                s.state = "downloading gp"
+            else:
+                s.state = "downloading yt"
+            s.process_downloads() # start a continuously refreshing loop until all queues are done
+        else:
+            OSI.log("OSI: Nothing to download")
+
+    def process_downloads(s): # function that updates the downloading process
+        # process the top of the gp queue
+
+        # decide if we need to keep downloading
+        if len(gptracks) + len(yttracks) > 0:
+            root.after(100,s.process_downloads) # continue the loop
+        else:
+            s.state = "waiting"
+        s.refreshvalues()
+
+    def gp_download(s,track): # download a single track
+        '''
+        track contents by index:
+            (0) title
+            (1) artist
+            (2) album
+            (3) album art URL
+            (4) track number
+            (5) storeId (was: multiIndex)
+            (6) composer
+            (7) date
+            (8) bpm
+            (9) genre
+        '''
+
+        folderpath = settings["gpdldir"] + track[1] + "/" + track[2] + "/"
+        songpath = folderpath + ('00'+track[4])[-2:] + " " + track[0] + ".mp3"
+        if os.path.isfile(songpath) and os.path.getSize(songpath) > 0:
+            OSI.log("OSI: Skipping (already downloaded)")
+        else:
+            OSI.gp_url2file(str(api.get_stream_url(track[5])),songpath)
+            if "albumArt.png" not in os.listdir(folderpath):
+                try:
+                    OSI.gp_url2file(track[3],(folderpath+"/albumArt.png"))
+                except:
+                    print("track[3] failed!")
+                    OSI.gp_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
+            OSI.gpalbumartify(songpath,folderpath)
+            OSI.gptagify(songpath,track)
+
+    def refreshvalues(s): # update the tracking labels
+        if s.state == "waiting":
+            s.staticlabel.configure(text="Status: ready to download")
+        if s.state == "downloading gp":
+            s.staticlabel.configure(text="Status: downloading from Google Play")
+        if s.state == "downloading gp":
+            s.staticlabel.configure(text="Status: downloading from YouTube")
+        s.gpstatus.configure(text=str(s.count_gpcomplete)+"/"+str(s.count_gptotal))
+        s.ytstatus.configure(text=str(s.count_ytcomplete)+"/"+str(s.count_yttotal))
+
+    def queue_gp(s,tracklist): # add tracks to the gp queue
+        for i in tracklist:
+            s.gptracks.append(i)
+            s.count_gptotal += 1
+
+    def queue_yt(s,tracklist): # add tracks to the yt queue
+        for i in tracklist:
+            s.yttracks.append(i)
+            s.count_yttotal += 1
+
 class dlLine: # ABSTRACT
     def __init__(s):
-        pass
+        # root superclass constructor has the elements shared by all possible variations of downloader widget
+        # create root window with basic border
+        s.wrapper = tk.Frame(OSI.dlframe,height=54)
+        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor)
+        s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
+        s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
     def __str__(s):
         return "dbLine (INTERFACE!)"
 
@@ -1245,18 +1379,42 @@ class gpLine(dlLine):
         dlLine.__init__(s)
     def __str__(s):
         return "gpLine (INTERFACE!)"
+    # download method shared by all gp objects
+    def download(s,to_dl):
+        for x in to_dl:
+            folderpath = settings["gpdldir"] + x[1] + "/" + x[2] + "/"
+            songpath = folderpath + ('00'+x[4])[-2:] + " " + x[0] + ".mp3"
+            if os.path.isfile(songpath):
+                pass
+            else:
+                # OLD CODE:
+                # get the same data again, because the result object is needed when requesting url
+                #result = api.search(x[5]).get("song_hits",5)[int(s.multi_index)].get("track")
+                OSI.gp_url2file(str(api.get_stream_url(result.get("storeId"))),songpath)
+                if "albumArt.png" not in os.listdir(folderpath):
+                    OSI.gp_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
+                OSI.dlalbumartify(songpath,folderpath)
+                OSI.dltagify(songpath,x)
 
-class gtSingleLine(gpLine):
+class gpTrack(gpLine):
+    def __init__(s, tracklist):
+        gpLine.__init__(s)
+        s.tracklist = tracklist
+        print(tracklist)
+    def __str__(s):
+        return "gpTrack"
+
+class gpAlbum(gpLine):
     def __init__(s):
         gpLine.__init__(s)
     def __str__(s):
-        return "gpSingleLine"
+        return "gpAlbum"
 
-class gpMultiLine(gpLine):
+class gpPlaylist(gpLine):
     def __init__(s):
         gpLine.__init__(s)
     def __str__(s):
-        return "gpMultiLine"
+        return "gpPlaylist"
 
 class ytLine(dlLine):
     def __init__(s):
@@ -1400,7 +1558,7 @@ class dbLine: # !!! move to below music classes when done
 
 class gpLineEmpty: # !!! move to below music classes when done
     def __init__(s,query):
-        s.mainframe = tk.Frame(OSI.gpframe,highlightthickness=2,highlightbackground="white")
+        s.mainframe = tk.Frame(OSI.dlframe,highlightthickness=2,highlightbackground="white")
         s.emptylabel = tk.Label(s.mainframe,fg="#c41313",text=("NO MATCH: "+query))
         s.emptylabel.pack(side=TOP)
         s.mainframe.pack(side=TOP,pady=(10,0),padx=10,fill=X)
@@ -1486,6 +1644,7 @@ class musicLine:
 # LAUNCH PREP
 root = tk.Tk()
 OSI = mainUI(root)
+dlMan = dlManager()
 OSI.greet()
 
 for i in range(3):
