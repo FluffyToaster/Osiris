@@ -9,6 +9,7 @@ import time
 starting_time = time.time()
 def t_since_start(): print(time.time() - starting_time) # call this anywhere to check delays in startup time
 
+import string
 import tkinter as tk
 from tkinter import END,LEFT,RIGHT,TOP,BOTTOM,N,E,S,W,NS,CENTER,RAISED,SUNKEN,X,Y,BOTH,filedialog
 import subprocess
@@ -194,12 +195,14 @@ def escape(string): # escape backslashes
                           [r"\\0",r"\\n",r"\\l",r"\\t"][i])
     return val.strip("'")
 
-def fltr(string):
-    temp = string[:]
+def fltr(orig_string, hard=True):
+    temp = orig_string[:]
     changelist = '*/\\":?<>|'
     for i in range(3):
         for char in changelist:
             temp = temp.replace(char,"_")
+    if hard:
+        return ''.join(filter(lambda x: x in string.printable, temp))
     return temp
 
 
@@ -996,7 +999,6 @@ class mainUI:
         ciphertext, tag = cipher.encrypt_and_digest(data)
         return (cipher.nonce+tag+ciphertext)
 
-
     def aegdec_single(s,key,data):
         nonce = data[:16]
         tag = data[16:32]
@@ -1092,8 +1094,12 @@ class mainUI:
                 # del
                 pass
             elif entry == "dl":
-                pass
-                # download
+                # go through all open widgets and tell them to ready
+                for dl in dlWidgets:
+                    dl.ready()
+                    del dlWidgets[dlWidgets.index(dl)]
+                DLMAN.download()
+
             elif entry.startswith("yt"): # yt single song
                 pass
             elif entry.startswith(("album", "gpalbum")):
@@ -1178,7 +1184,7 @@ class mainUI:
                 fltr(str(i.get("album"))),
                 str(i.get("albumArtRef")[0].get("url")),
                 fltr(str(i.get("trackNumber"))),
-                query,
+                fltr(str(i.get("storeId"))),
                 fltr(str(i.get("composer"))),
                 fltr(str(i.get("year"))),
                 fltr(str(i.get("beatsPerMinute"))),
@@ -1195,7 +1201,7 @@ class mainUI:
             # write to file
             wfile.write(response.content)
 
-    def dltagify(s,songpath,tinfo):
+    def gptagify(s,songpath,tinfo):
         tagfile = EasyMP3(songpath)
         tagfile["title"] = tinfo[0]
         tagfile["artist"] = tinfo[1]
@@ -1208,7 +1214,7 @@ class mainUI:
         tagfile["genre"] = tinfo[9]
         tagfile.save()
 
-    def dlalbumartify(s,songpath,folderpath):
+    def gpalbumartify(s,songpath,folderpath):
         audio = MP3(songpath, ID3=ID3)
         try:audio.add_tags()
         except:pass
@@ -1277,7 +1283,7 @@ class dlManager:
     def __init__(s):
         s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=50)
         s.state = "waiting"
-
+        s.idle = True
         s.count_gpcomplete = 0
         s.count_gptotal = 0
         s.count_ytcomplete = 0
@@ -1294,8 +1300,9 @@ class dlManager:
         s.mainframe.pack(side=BOTTOM)
 
     def download(s): # publicly accessible download command that is split into further tasks
-        if len(gptracks) + len(yttracks) > 0:
-            if len(gptracks) > 0:
+        print("dl")
+        if len(s.gptracks) + len(s.yttracks) > 0:
+            if len(s.gptracks) > 0:
                 s.state = "downloading gp"
             else:
                 s.state = "downloading yt"
@@ -1304,16 +1311,21 @@ class dlManager:
             OSI.log("OSI: Nothing to download")
 
     def process_downloads(s): # function that updates the downloading process
+        print("prc")
         # process the top of the gp queue
-
+        if s.idle:
+            if len(s.gptracks) > 0:
+                threading.Thread(target=lambda: s.gp_download(s.gptracks.pop(0))).start()
         # decide if we need to keep downloading
-        if len(gptracks) + len(yttracks) > 0:
-            root.after(100,s.process_downloads) # continue the loop
+        if len(s.gptracks) + len(s.yttracks) > 0:
+            root.after(20,s.process_downloads) # continue the loop
         else:
             s.state = "waiting"
         s.refreshvalues()
 
     def gp_download(s,track): # download a single track
+        s.idle = False
+        print("gpdl")
         '''
         track contents by index:
             (0) title
@@ -1333,22 +1345,24 @@ class dlManager:
         if os.path.isfile(songpath) and os.path.getSize(songpath) > 0:
             OSI.log("OSI: Skipping (already downloaded)")
         else:
-            OSI.gp_url2file(str(api.get_stream_url(track[5])),songpath)
+            OSI.dl_url2file(str(api.get_stream_url(track[5])),songpath)
             if "albumArt.png" not in os.listdir(folderpath):
                 try:
-                    OSI.gp_url2file(track[3],(folderpath+"/albumArt.png"))
+                    OSI.dl_url2file(track[3],(folderpath+"/albumArt.png"))
                 except:
                     print("track[3] failed!")
-                    OSI.gp_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
+                    OSI.dl_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
             OSI.gpalbumartify(songpath,folderpath)
             OSI.gptagify(songpath,track)
+        s.count_gpcomplete += 1
+        s.idle = True
 
     def refreshvalues(s): # update the tracking labels
         if s.state == "waiting":
             s.staticlabel.configure(text="Status: ready to download")
         if s.state == "downloading gp":
             s.staticlabel.configure(text="Status: downloading from Google Play")
-        if s.state == "downloading gp":
+        if s.state == "downloading yt":
             s.staticlabel.configure(text="Status: downloading from YouTube")
         s.gpstatus.configure(text=str(s.count_gpcomplete)+"/"+str(s.count_gptotal))
         s.ytstatus.configure(text=str(s.count_ytcomplete)+"/"+str(s.count_yttotal))
@@ -1390,19 +1404,23 @@ class gpLine(dlLine):
                 # OLD CODE:
                 # get the same data again, because the result object is needed when requesting url
                 #result = api.search(x[5]).get("song_hits",5)[int(s.multi_index)].get("track")
-                OSI.gp_url2file(str(api.get_stream_url(result.get("storeId"))),songpath)
+                OSI.dl_url2file(str(api.get_stream_url(result.get("storeId"))),songpath)
                 if "albumArt.png" not in os.listdir(folderpath):
-                    OSI.gp_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
-                OSI.dlalbumartify(songpath,folderpath)
-                OSI.dltagify(songpath,x)
+                    OSI.dl_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
+                OSI.gpalbumartify(songpath,folderpath)
+                OSI.gptagify(songpath,x)
 
 class gpTrack(gpLine):
     def __init__(s, tracklist):
         gpLine.__init__(s)
         s.tracklist = tracklist
+        s.multi_index = 0 # which song to select in the tracklist
         print(tracklist)
     def __str__(s):
         return "gpTrack"
+    def ready(s): # send relevant data to dlManager
+        DLMAN.queue_gp([s.tracklist[s.multi_index]])
+        s.wrapper.destroy()
 
 class gpAlbum(gpLine):
     def __init__(s):
@@ -1644,7 +1662,7 @@ class musicLine:
 # LAUNCH PREP
 root = tk.Tk()
 OSI = mainUI(root)
-dlMan = dlManager()
+DLMAN = dlManager()
 OSI.greet()
 
 for i in range(3):
