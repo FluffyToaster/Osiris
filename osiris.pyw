@@ -205,6 +205,16 @@ def fltr(orig_string, hard=True):
         return ''.join(filter(lambda x: x in string.printable, temp))
     return temp
 
+def colorFromImage(image, avoid_dark = False):
+    colors = image.getcolors(image.size[0]*image.size[1])
+    max_occurence, most_present = 0, 0
+    for c in colors:
+        if c[0] > max_occurence and (not(avoid_dark) or sum(c[1]) > 100):
+            (max_occurence, most_present) = c
+    return most_present
+
+def RGBToHex(rgb):
+    return ("#"+('00'+str(hex(rgb[0]))[2:])[-2:]+('00'+str(hex(rgb[1]))[2:])[-2:]+('00'+str(hex(rgb[2]))[2:])[-2:])
 
 # TOPLEVEL TEXT INTERACTION DEFS
 def selectFile(filepath=settings["datapath"]): # function used by all 'text' functions to get the content of osData.txt, also applicable for other .txt files
@@ -1145,9 +1155,12 @@ class mainUI:
 
             elif entry != "" or entry.startswith("gp "):
                 # not a command or URL: default behaviour is to search GP for single track
-                search_results = s.gpsearch(entry)
+                search_results = s.gpsearch_track(entry)
                 if search_results != False:
                     dlWidgets.append(gpTrack(search_results))
+
+    def dl_delete(s, object):
+        dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
 
     def gpbackgroundlogin(s):
         from gmusicapi import Mobileclient
@@ -1167,7 +1180,7 @@ class mainUI:
         time.sleep(1)
         OSI.log("OSI: All systems nominal")
 
-    def gpsearch(s,query):
+    def gpsearch_track(s,query):
         # perform search of gp database
         try:
             results = api.search(query).get("song_hits",DL_ALTERNATIVES)[:DL_ALTERNATIVES]
@@ -1188,7 +1201,30 @@ class mainUI:
                 fltr(str(i.get("composer"))),
                 fltr(str(i.get("year"))),
                 fltr(str(i.get("beatsPerMinute"))),
-                fltr(str(i.get("genre")))
+                fltr(str(i.get("genre"))),
+                query
+            ])
+        return curinfo
+
+    def gpsearch_album(s,query):
+        # perform search of gp database
+        try:
+            results = api.search(query).get("album_hits",DL_ALTERNATIVES)[:DL_ALTERNATIVES]
+        except IndexError:
+            gpLineEmpty(query)
+            return False
+        curinfo = []
+        for i in results:
+            i = i.get("album")
+            # get relevant results in a list
+            curinfo.append([
+                fltr(str(i.get("name"))),
+                fltr(str(i.get("artist"))),
+                fltr(str(i.get("year"))),
+                str(i.get("albumArtRef")),
+                fltr(str(i.get("albumId"))),
+                fltr(str(i.get("explicitType"))),
+                query
             ])
         return curinfo
 
@@ -1338,6 +1374,7 @@ class dlManager:
             (7) date
             (8) bpm
             (9) genre
+            (10) query
         '''
 
         folderpath = settings["gpdldir"] + track[1] + "/" + track[2] + "/"
@@ -1382,11 +1419,23 @@ class dlLine: # ABSTRACT
         # root superclass constructor has the elements shared by all possible variations of downloader widget
         # create root window with basic border
         s.wrapper = tk.Frame(OSI.dlframe,height=54)
-        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor)
+        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor) # placeholder mainframe that is replaced by the generate function
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
         s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
+
     def __str__(s):
         return "dbLine (INTERFACE!)"
+
+    def generate(s):
+        # every generate function should at least destroy the mainframe and replace it with its own
+        s.mainframe.destroy()
+        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor)
+        s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
+
+    def set_color(s,color):
+        if type(color) != str and len(color) == 3:
+            color = RGBToHex(color)
+        s.wrapper.configure(bg=color)
 
 class gpLine(dlLine):
     def __init__(s):
@@ -1415,9 +1464,44 @@ class gpTrack(gpLine):
         gpLine.__init__(s)
         s.tracklist = tracklist
         s.multi_index = 0 # which song to select in the tracklist
-        print(tracklist)
+        s.generate()
+
     def __str__(s):
         return "gpTrack"
+
+    def generate(s): # use tracklist and multi_index to generate the widget as desired
+        dlLine.generate(s) # regenerate mainframe
+
+        curinfo = s.tracklist[s.multi_index]
+        s.image = Image.open(BytesIO(requests.get(curinfo[3]).content))
+        s.image = s.image.resize((50,50), Image.ANTIALIAS)
+        # get the main color from the image for fancy reasons
+        s.bordercolor = colorFromImage(s.image)
+
+        if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
+            s.bordercontrast = "#000000"
+        else:
+            s.bordercontrast = tktxtcol
+        s.bordercolor = RGBToHex(s.bordercolor)
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Track")
+        s.typelabel.pack(side=LEFT,fill=Y)
+
+        s.set_color(s.bordercolor)
+        s.photo = ImageTk.PhotoImage(s.image)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe.pack_propagate(0)
+        s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
+        s.photolabel.pack()
+        s.photoframe.pack(side=LEFT)
+        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel.pack(side=LEFT,padx=(10,0))
+        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel.pack(side=LEFT,padx=(10,0))
+        s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[2])
+        s.albumlabel.pack(side=LEFT,padx=(10,0))
+        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton.pack(side=RIGHT,padx=(0,10))
+
     def ready(s): # send relevant data to dlManager
         DLMAN.queue_gp([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
