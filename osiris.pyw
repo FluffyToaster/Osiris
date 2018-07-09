@@ -652,8 +652,8 @@ class mainUI:
             for settings["searchdir"], dirs, files in os.walk(settings["searchdir"])
             for name in files
             if name.endswith((".mp3",".flac",".m4a",".wav"))]
-        s.mpfilesget()
         writeToText(diskdata,"mp allfiles")
+        s.mpfilesget()
 
     def mpfilesget(s): # updates allfiles and mp playcount using osData.txt
         global allfiles
@@ -1149,15 +1149,13 @@ class mainUI:
                 else:
                     s.log("URL parsing failed")
                 s.log("OSI: URL parsed")
+
                 if type == "gp track":
-                    api.get_track_info(id)
+                    dlWidgets.append(gpTrack([s.gp_get_track_data(api.get_track_info(id))]))
+
                 if type == "gp playlist":
-                    pp = pprint.PrettyPrinter(indent=4)
-                    print(t_since_start())
                     search_result = api.get_shared_playlist_contents(id)
-                    print(t_since_start())
                     web_result = webapi.get_shared_playlist_info(id)
-                    print(t_since_start())
                     pl_info = [
                                 fltr(web_result["title"]),
                                 fltr(web_result["author"]),
@@ -1167,7 +1165,7 @@ class mainUI:
                     dlWidgets.append(gpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
 
                 if type == "gp album":
-                    api.get_album_info(id)
+                    dlWidgets.append(gpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
 
 
             elif entry != "" or entry.startswith("gp "):
@@ -1214,6 +1212,14 @@ class mainUI:
                 fltr(str(track.get("beatsPerMinute"))),
                 fltr(str(track.get("genre")))]
 
+    def gp_get_album_data(s, album):
+        return [fltr(str(album.get("name"))),
+                fltr(str(album.get("artist"))),
+                fltr(str(album.get("year"))),
+                str(album.get("albumArtRef")),
+                fltr(str(album.get("albumId"))),
+                fltr(str(album.get("explicitType")))]
+
     def gpsearch_track(s,query):
         # perform search of gp database
         try:
@@ -1225,7 +1231,7 @@ class mainUI:
         for i in results:
             i = i.get("track")
             # get relevant results in a list
-            curinfo.append(OSI.gp_get_track_data(i))
+            curinfo.append(s.gp_get_track_data(i))
             curinfo[-1].append(query)
         return curinfo
 
@@ -1240,15 +1246,8 @@ class mainUI:
         for i in results:
             i = i.get("album")
             # get relevant results in a list
-            curinfo.append([
-                fltr(str(i.get("name"))),
-                fltr(str(i.get("artist"))),
-                fltr(str(i.get("year"))),
-                str(i.get("albumArtRef")),
-                fltr(str(i.get("albumId"))),
-                fltr(str(i.get("explicitType"))),
-                query
-            ])
+            curinfo.append(s.gp_get_album_data(i))
+            curinfo[-1].append(query)
         return curinfo
 
     def dl_url2file(s,url,filename):
@@ -1381,13 +1380,15 @@ class dlManager:
         # decide if we need to keep downloading
         if len(s.gptracks) + len(s.yttracks) > 0:
             root.after(50,s.process_downloads) # continue the loop
-        else:
+        elif s.idle:
             s.count_gpcomplete = 0
             s.count_gptotal = 0
             s.count_ytcomplete = 0
             s.count_yttotal = 0
             s.state = "waiting"
-            print("waiting")
+            print("waiting") # slow update cycle to finish
+        else:
+            root.after(250,s.process_downloads)
         s.refreshvalues()
 
     def gp_download(s,track): # download a single track
