@@ -26,6 +26,7 @@ import tkinter.ttk as ttk
 from ctypes import windll
 
 # third party libraries
+import pprint
 import requests
 from mutagen.mp3 import EasyMP3, MP3
 from mutagen.id3 import ID3, APIC
@@ -1147,12 +1148,24 @@ class mainUI:
                     s.log("YT not supported yet")
                 else:
                     s.log("URL parsing failed")
-                s.log(type)
-                s.log(id)
+                s.log("OSI: URL parsed")
                 if type == "gp track":
                     api.get_track_info(id)
                 if type == "gp playlist":
-                    api.get_shared_playlist_contents(id)
+                    pp = pprint.PrettyPrinter(indent=4)
+                    print(t_since_start())
+                    search_result = api.get_shared_playlist_contents(id)
+                    print(t_since_start())
+                    web_result = webapi.get_shared_playlist_info(id)
+                    print(t_since_start())
+                    pl_info = [
+                                fltr(web_result["title"]),
+                                fltr(web_result["author"]),
+                                str(web_result["num_tracks"]),
+                                fltr(web_result["description"]),
+                              ]
+                    dlWidgets.append(gpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
+
                 if type == "gp album":
                     api.get_album_info(id)
 
@@ -1167,12 +1180,16 @@ class mainUI:
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
 
     def gpbackgroundlogin(s):
-        from gmusicapi import Mobileclient
+        from gmusicapi import Mobileclient, Webclient
+        print(t_since_start())
         global gplogin
         global api
+        global webapi
         api = Mobileclient()
+        webapi = Webclient()
         try:
             gptemp = api.login(settings["gpemail"], gppass, settings["gpMAC"])
+            gptemp2 = webapi.login(settings["gpemail"], gppass)
         except Exception as e:
             s.dlloginreq.configure(text="LOGIN FAILED")
             print(e)
@@ -1181,6 +1198,7 @@ class mainUI:
         OSI.log("OSI: GP logged in")
         if gplogin == True:
             s.dlloginreq.pack_forget()
+            DLMAN.mainframe.pack(side=BOTTOM, fill=X)
         time.sleep(1)
         OSI.log("OSI: All systems nominal")
 
@@ -1322,7 +1340,7 @@ class mainUI:
 
 class dlManager:
     def __init__(s):
-        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbgcolor,height=50)
+        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=50)
         s.state = "waiting"
         s.idle = True
         s.count_gpcomplete = 0
@@ -1342,7 +1360,7 @@ class dlManager:
         s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4)
         s.ytstatus.pack(side=LEFT)
         s.refreshvalues()
-        s.mainframe.pack(side=BOTTOM, fill=X)
+        # mainframe not packed (this is done by login method)
 
     def download(s): # publicly accessible download command that is split into further tasks
         print("dl")
@@ -1365,6 +1383,10 @@ class dlManager:
         if len(s.gptracks) + len(s.yttracks) > 0:
             root.after(20,s.process_downloads) # continue the loop
         else:
+            s.count_gpcomplete = 0
+            s.count_gptotal = 0
+            s.count_ytcomplete = 0
+            s.count_yttotal = 0
             s.state = "waiting"
             print("waiting")
         s.refreshvalues()
@@ -1513,7 +1535,7 @@ class gpTrack(gpLine):
         s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[2])
         s.albumlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
-        s.delbutton.pack(side=RIGHT,padx=(0,10))
+        s.delbutton.pack(side=RIGHT,padx=(0,8))
 
     def ready(s): # send relevant data to dlManager
         DLMAN.queue_gp([s.tracklist[s.multi_index]])
@@ -1575,13 +1597,45 @@ class gpAlbum(gpLine):
         s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
         s.artistlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
-        s.delbutton.pack(side=RIGHT,padx=(0,10))
+        s.delbutton.pack(side=RIGHT,padx=(0,8))
 
 class gpPlaylist(gpLine):
-    def __init__(s):
+    def __init__(s,tracklist,plinfo):
         gpLine.__init__(s)
+        s.plinfo = plinfo
+        s.tracklist = tracklist
+
+        s.generate()
     def __str__(s):
         return "gpPlaylist"
+
+    def generate(s):
+        dlLine.generate(s) # regenerate mainframe
+
+        curinfo = s.plinfo
+        s.bordercolor = "#fe5722"
+        s.bordercontrast = "#ffffff"
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Playlist")
+        s.typelabel.pack(side=LEFT,fill=Y)
+
+        s.image = Image.open("etc/gp.png")
+        s.image = s.image.resize((50,50), Image.ANTIALIAS)
+        s.photo = ImageTk.PhotoImage(s.image)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe.pack_propagate(0)
+        s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
+        s.photolabel.pack()
+        s.photoframe.pack(side=LEFT)
+
+        s.set_color(s.bordercolor)
+        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel.pack(side=LEFT,padx=(10,0))
+        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel.pack(side=LEFT,padx=(10,0))
+        s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=12,text=curinfo[2]+" tracks")
+        s.albumlabel.pack(side=LEFT,padx=(10,0))
+        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton.pack(side=RIGHT,padx=(0,8))
 
 class ytLine(dlLine):
     def __init__(s):
@@ -1860,6 +1914,7 @@ OSI.dbrefresh()
 OSI.log("OSI: MP and DB loaded")
 
 api = None # this is imported asynchronously due to long delay (.6 seconds)
+webapi = None
 gplogin = False
 gppass = settings["gppass"]
 threading.Thread(target=OSI.gpbackgroundlogin).start()
