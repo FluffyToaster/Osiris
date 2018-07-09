@@ -1106,14 +1106,18 @@ class mainUI:
             elif entry == "dl":
                 # go through all open widgets and tell them to ready
                 for dl in dlWidgets:
+                    print("beem")
                     dl.ready()
+                for dl in dlWidgets:
                     del dlWidgets[dlWidgets.index(dl)]
                 DLMAN.download()
 
             elif entry.startswith("yt"): # yt single song
                 pass
-            elif entry.startswith(("album", "gpalbum")):
-                pass
+            elif entry.startswith(("album ")):
+                search_results = s.gpsearch_album(entry[6:])
+                if search_results != False:
+                    dlWidgets.append(gpAlbum(search_results))
             elif entry.startswith(("http://","https://","www.","youtube.com","play.google")):
                 # if true, start parsing URL
                 # remove unnecessary prefixes
@@ -1180,6 +1184,18 @@ class mainUI:
         time.sleep(1)
         OSI.log("OSI: All systems nominal")
 
+    def gp_get_track_data(s, track):
+        return [fltr(str(track.get("title"))),
+                fltr(str(track.get("artist"))),
+                fltr(str(track.get("album"))),
+                str(track.get("albumArtRef")[0].get("url")),
+                fltr(str(track.get("trackNumber"))),
+                fltr(str(track.get("storeId"))),
+                fltr(str(track.get("composer"))),
+                fltr(str(track.get("year"))),
+                fltr(str(track.get("beatsPerMinute"))),
+                fltr(str(track.get("genre")))]
+
     def gpsearch_track(s,query):
         # perform search of gp database
         try:
@@ -1191,19 +1207,8 @@ class mainUI:
         for i in results:
             i = i.get("track")
             # get relevant results in a list
-            curinfo.append([
-                fltr(str(i.get("title"))),
-                fltr(str(i.get("artist"))),
-                fltr(str(i.get("album"))),
-                str(i.get("albumArtRef")[0].get("url")),
-                fltr(str(i.get("trackNumber"))),
-                fltr(str(i.get("storeId"))),
-                fltr(str(i.get("composer"))),
-                fltr(str(i.get("year"))),
-                fltr(str(i.get("beatsPerMinute"))),
-                fltr(str(i.get("genre"))),
-                query
-            ])
+            curinfo.append(OSI.gp_get_track_data(i))
+            curinfo[-1].append(query)
         return curinfo
 
     def gpsearch_album(s,query):
@@ -1317,7 +1322,7 @@ class mainUI:
 
 class dlManager:
     def __init__(s):
-        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=50)
+        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbgcolor,height=50)
         s.state = "waiting"
         s.idle = True
         s.count_gpcomplete = 0
@@ -1328,12 +1333,16 @@ class dlManager:
         s.yttracks = []
         s.staticlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=40)
         s.staticlabel.pack(side=LEFT)
-        s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28)
+        s.gplabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4,text="GP: ")
+        s.gplabel.pack(side=LEFT)
+        s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4)
         s.gpstatus.pack(side=LEFT)
-        s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28)
-        s.ytstatus.pack(side=RIGHT)
+        s.ytlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=6,text="  YT: ")
+        s.ytlabel.pack(side=LEFT)
+        s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4)
+        s.ytstatus.pack(side=LEFT)
         s.refreshvalues()
-        s.mainframe.pack(side=BOTTOM)
+        s.mainframe.pack(side=BOTTOM, fill=X)
 
     def download(s): # publicly accessible download command that is split into further tasks
         print("dl")
@@ -1347,7 +1356,7 @@ class dlManager:
             OSI.log("OSI: Nothing to download")
 
     def process_downloads(s): # function that updates the downloading process
-        print("prc")
+        print("prc "+str(len(s.gptracks)))
         # process the top of the gp queue
         if s.idle:
             if len(s.gptracks) > 0:
@@ -1357,6 +1366,7 @@ class dlManager:
             root.after(20,s.process_downloads) # continue the loop
         else:
             s.state = "waiting"
+            print("waiting")
         s.refreshvalues()
 
     def gp_download(s,track): # download a single track
@@ -1379,9 +1389,10 @@ class dlManager:
 
         folderpath = settings["gpdldir"] + track[1] + "/" + track[2] + "/"
         songpath = folderpath + ('00'+track[4])[-2:] + " " + track[0] + ".mp3"
-        if os.path.isfile(songpath) and os.path.getSize(songpath) > 0:
+        if os.path.isfile(songpath) and os.path.getsize(songpath) > 0:
             OSI.log("OSI: Skipping (already downloaded)")
         else:
+            print("dl start")
             OSI.dl_url2file(str(api.get_stream_url(track[5])),songpath)
             if "albumArt.png" not in os.listdir(folderpath):
                 try:
@@ -1393,6 +1404,8 @@ class dlManager:
             OSI.gptagify(songpath,track)
         s.count_gpcomplete += 1
         s.idle = True
+        s.refreshvalues()
+        print("done boi")
 
     def refreshvalues(s): # update the tracking labels
         if s.state == "waiting":
@@ -1505,12 +1518,64 @@ class gpTrack(gpLine):
     def ready(s): # send relevant data to dlManager
         DLMAN.queue_gp([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
+        print("bingo")
 
 class gpAlbum(gpLine):
-    def __init__(s):
+    def __init__(s, albumlist):
         gpLine.__init__(s)
+        s.albumlist = albumlist
+        s.multi_index = 0
+
+        s.generate()
+
     def __str__(s):
         return "gpAlbum"
+
+    def ready(s): # send relevant data to dlManager
+        album_tracks = api.get_album_info(s.albumlist[s.multi_index][4])["tracks"]
+        DLMAN.queue_gp([OSI.gp_get_track_data(x) for x in album_tracks])
+        s.wrapper.destroy()
+        print("bongo")
+
+    def generate(s):
+        dlLine.generate(s) # regenerate mainframe
+
+        '''
+            (0) name
+            (1) artist
+            (2) year
+            (3) albumArtRef
+            (4) albumId
+            (5) explicitType
+            (6) query
+        '''
+        curinfo = s.albumlist[s.multi_index]
+        s.image = Image.open(BytesIO(requests.get(curinfo[3]).content))
+        s.image = s.image.resize((50,50), Image.ANTIALIAS)
+        # get the main color from the image for fancy reasons
+        s.bordercolor = colorFromImage(s.image)
+
+        if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
+            s.bordercontrast = "#000000"
+        else:
+            s.bordercontrast = tktxtcol
+        s.bordercolor = RGBToHex(s.bordercolor)
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Album")
+        s.typelabel.pack(side=LEFT,fill=Y)
+
+        s.set_color(s.bordercolor)
+        s.photo = ImageTk.PhotoImage(s.image)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe.pack_propagate(0)
+        s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
+        s.photolabel.pack()
+        s.photoframe.pack(side=LEFT)
+        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel.pack(side=LEFT,padx=(10,0))
+        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel.pack(side=LEFT,padx=(10,0))
+        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton.pack(side=RIGHT,padx=(0,10))
 
 class gpPlaylist(gpLine):
     def __init__(s):
