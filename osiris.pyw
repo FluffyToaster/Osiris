@@ -1353,11 +1353,11 @@ class dlManager:
         s.staticlabel.pack(side=LEFT)
         s.gplabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4,text="GP: ")
         s.gplabel.pack(side=LEFT)
-        s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4)
+        s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
         s.gpstatus.pack(side=LEFT)
         s.ytlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=6,text="  YT: ")
         s.ytlabel.pack(side=LEFT)
-        s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4)
+        s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
         s.ytstatus.pack(side=LEFT)
         s.refreshvalues()
         # mainframe not packed (this is done by login method)
@@ -1374,14 +1374,13 @@ class dlManager:
             OSI.log("OSI: Nothing to download")
 
     def process_downloads(s): # function that updates the downloading process
-        print("prc "+str(len(s.gptracks)))
         # process the top of the gp queue
         if s.idle:
             if len(s.gptracks) > 0:
                 threading.Thread(target=lambda: s.gp_download(s.gptracks.pop(0))).start()
         # decide if we need to keep downloading
         if len(s.gptracks) + len(s.yttracks) > 0:
-            root.after(20,s.process_downloads) # continue the loop
+            root.after(50,s.process_downloads) # continue the loop
         else:
             s.count_gpcomplete = 0
             s.count_gptotal = 0
@@ -1393,6 +1392,8 @@ class dlManager:
 
     def gp_download(s,track): # download a single track
         s.idle = False
+        s.count_gpcomplete += 1
+        s.refreshvalues()
         print("gpdl")
         '''
         track contents by index:
@@ -1424,9 +1425,8 @@ class dlManager:
                     OSI.dl_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
             OSI.gpalbumartify(songpath,folderpath)
             OSI.gptagify(songpath,track)
-        s.count_gpcomplete += 1
+
         s.idle = True
-        s.refreshvalues()
         print("done boi")
 
     def refreshvalues(s): # update the tracking labels
@@ -1604,10 +1604,15 @@ class gpPlaylist(gpLine):
         gpLine.__init__(s)
         s.plinfo = plinfo
         s.tracklist = tracklist
-
         s.generate()
+
     def __str__(s):
         return "gpPlaylist"
+
+    def ready(s): # send relevant data to dlManager
+        DLMAN.queue_gp(s.tracklist)
+        s.wrapper.destroy()
+        print("b a n g o")
 
     def generate(s):
         dlLine.generate(s) # regenerate mainframe
