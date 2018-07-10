@@ -1494,12 +1494,19 @@ class gpLine(dlLine):
                 OSI.gpalbumartify(songpath,folderpath)
                 OSI.gptagify(songpath,x)
 
+    def multipack(s):
+        s.multibutton.configure(command=s.multiforget)
+        s.multiframe.pack(side=TOP,fill=X)
+
+    def multiforget(s):
+        s.multibutton.configure(command=s.multipack)
+        s.multiframe.pack_forget()
+
 class gpTrack(gpLine):
     def __init__(s, tracklist):
         gpLine.__init__(s)
         s.tracklist = tracklist
         s.multi_index = 0 # which song to select in the tracklist
-        s.multilines = [] # initially no multilines
         s.generate()
 
     def __str__(s):
@@ -1544,15 +1551,7 @@ class gpTrack(gpLine):
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
                 if i != s.multi_index: # only generate multilines for nonselected tracks
-                    s.multilines.append(s.gpTrackMulti(s, s.tracklist[i], i))
-
-    def multipack(s):
-        s.multibutton.configure(command=s.multiforget)
-        s.multiframe.pack(side=TOP,fill=X)
-
-    def multiforget(s):
-        s.multibutton.configure(command=s.multipack)
-        s.multiframe.pack_forget()
+                    s.gpTrackMulti(s, s.tracklist[i], i)
 
     def ready(s): # send relevant data to dlManager
         DLMAN.queue_gp([s.tracklist[s.multi_index]])
@@ -1633,6 +1632,32 @@ class gpAlbum(gpLine):
         s.artistlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
+
+        if len(s.albumlist) > 1: # if we actually have alternatives to show, make the multilist
+            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.multipack)
+            s.multibutton.pack(side=RIGHT,padx=(0,8))
+            s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
+            for i in range(len(s.albumlist)):
+                if i != s.multi_index: # only generate multilines for nonselected tracks
+                    s.gpAlbumMulti(s, s.albumlist[i], i)
+
+    class gpAlbumMulti: # gpAlbum subclass that just displays a small line
+        def __init__(s, parent, info, my_index):
+            s.parent = parent
+            s.info = info
+            s.my_index = my_index
+            s.mainframe = tk.Frame(s.parent.multiframe,bg=tkbuttoncolor)
+            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[0])
+            s.titlelabel.pack(side=LEFT,padx=(106,0))
+            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[1])
+            s.artistlabel.pack(side=LEFT,padx=(10,0))
+            s.btn = tk.Button(s.mainframe,text="S",width=3,relief='ridge',bd=2,bg=tkbuttoncolor,fg=tktxtcol,activebackground=tkbgcolor,activeforeground=tktxtcol,command=s.select)
+            s.btn.pack(side=RIGHT,padx=(0,10),pady=2)
+            s.mainframe.pack(side=TOP,fill=X,padx=1,pady=(0,1))
+
+        def select(s):
+            s.parent.multi_index = s.my_index
+            s.parent.generate()
 
 class gpPlaylist(gpLine):
     def __init__(s,tracklist,plinfo):
