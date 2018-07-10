@@ -1177,6 +1177,7 @@ class mainUI:
             if type == "yt playlist":
                 trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&key="+settings["yt_api_key"])
                 trackdata = trackres.json()["items"]
+                print(trackdata[0])
                 plres = requests.get("https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id="+id+"&key="+settings["yt_api_key"])
                 pldata = plres.json()["items"][0]
                 pldata_parsed = [pldata["snippet"]["title"], pldata["snippet"]["channelTitle"], pldata["contentDetails"]["itemCount"]]
@@ -1471,10 +1472,12 @@ class dlManager:
         s.refreshvalues()
 
     def yt_download(s, track): # download from youtube data to filename
+
         s.idle = False
         s.count_ytcomplete += 1
         s.refreshvalues()
         url = track[3]
+        track[1] = s.get_correct_channel_name(track)
         name = settings["dldir"]+"/YouTube/"+track[1]+"/"+track[0]+".mp3"
         os.makedirs(os.path.dirname(name), exist_ok=True)
         if not(os.path.isfile(name)):
@@ -1503,6 +1506,11 @@ class dlManager:
                 return
         s.refreshvalues()
         root.after(100, lambda: s.idle_watchdog(id)) # else, keep looking
+
+    def get_correct_channel_name(s, track):
+        trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+track[3]+"&key="+settings["yt_api_key"])
+        actual_channel = trackres.json()["items"][0]["snippet"]["channelTitle"]
+        return actual_channel
 
     def gp_download(s,track): # download a single track
         s.idle = False
@@ -1803,8 +1811,20 @@ class gpPlaylist(gpLine):
 class ytLine(dlLine):
     def __init__(s):
         dlLine.__init__(s)
+
     def __str__(s):
         return "ytLine (INTERFACE!)"
+
+    def generate_image_data(s, tracklist, _index):
+        curinfo = tracklist[_index]
+        image = Image.open(BytesIO(requests.get(curinfo[2]).content))
+        borders = OSI.findborders(image)
+        image = image.crop(borders) # crop image to borders
+        maincolor = colorFromImage(image) # get the prevalent color
+        background = Image.new("RGB", (480,480),maincolor)
+        background.paste(image, (borders[0],60+borders[1]))
+        tracklist[_index].append(background.copy())
+        tracklist[_index].append(maincolor)
 
 class ytSingle(ytLine):
     def __init__(s, tracklist):
@@ -1823,16 +1843,11 @@ class ytSingle(ytLine):
     def generate(s):
         dlLine.generate(s) # regenerate mainframe
 
+        s.generate_image_data(s.tracklist, s.multi_index) # appends image object and primary color to info
         curinfo = s.tracklist[s.multi_index]
 
-        s.image = Image.open(BytesIO(requests.get(curinfo[2]).content))
-        borders = OSI.findborders(s.image)
-        s.image = s.image.crop(borders) # crop image to borders
-        s.bordercolor = colorFromImage(s.image) # get the prevalent color
-        background = Image.new("RGB", (480,480),s.bordercolor)
-        background.paste(s.image, (borders[0],60+borders[1]))
-        s.tracklist[s.multi_index].append(background.copy())
-        s.image = background.resize((50,50), Image.ANTIALIAS)
+        s.bordercolor = curinfo[5]
+        s.image = curinfo[4].resize((50,50), Image.ANTIALIAS)
         # get the main color from the image for fancy reasons
 
 
@@ -1896,7 +1911,8 @@ class ytMulti(ytLine):
         return "ytMulti"
 
     def ready(s):
-        print(len(s.tracklist))
+        for i in range(len(s.tracklist)):
+            s.generate_image_data(s.tracklist, i)
         DLMAN.queue_yt(s.tracklist)
         s.wrapper.destroy()
 
