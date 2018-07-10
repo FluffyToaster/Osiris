@@ -1105,85 +1105,93 @@ class mainUI:
 
 #################################### DOWNLOAD DEFS #####################################################################
     def dlinterpret(s,entry):
-        if gplogin != True:
+        s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
+        if entry.startswith("d ") and isint(entry.split()[1]): # if entry is delete command
+            # del
             pass
-        else:
-            s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
-            if entry.startswith("d ") and isint(entry.split()[1]): # if entry is delete command
-                # del
-                pass
-            elif entry == "dl":
-                # go through all open widgets and tell them to ready
-                for dl in dlWidgets:
-                    dl.ready()
-                for dl in dlWidgets:
-                    del dlWidgets[dlWidgets.index(dl)]
-                DLMAN.download()
+        elif entry == "dl":
+            # go through all open widgets and tell them to ready
+            for dl in dlWidgets:
+                dl.ready()
+            for dl in dlWidgets:
+                del dlWidgets[dlWidgets.index(dl)]
+            DLMAN.download()
 
-            elif entry.startswith("yt "): # yt single song
-                query = "+".join(entry[3:].split())
-                res = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&q="+query+"&type=video&key="+settings["yt_api_key"])
-                data = res.json()["items"][:DL_ALTERNATIVES]
-                dlWidgets.append(ytSingle([s.yt_get_track_data(x) for x in data]))
+        elif entry.startswith("yt "): # yt single song
+            query = "+".join(entry[3:].split())
+            res = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&q="+query+"&type=video&key="+settings["yt_api_key"])
+            data = res.json()["items"][:DL_ALTERNATIVES]
+            dlWidgets.append(ytSingle([s.yt_get_track_data(x) for x in data]))
 
-            elif entry.startswith(("album ")):
-                search_results = s.gpsearch_album(entry[6:])
-                if search_results != False:
-                    dlWidgets.append(gpAlbum(search_results))
-            elif entry.startswith(("http://","https://","www.","youtube.com","play.google")):
-                # if true, start parsing URL
-                # remove unnecessary prefixes
-                urlentry = entry
-                for i in ["http://","https://","www.","youtube.com","play.google",".com","/music/"]:
-                    urlentry = urlentry.split(i)[-1]
+        elif entry.startswith(("album ")) and gplogin != False:
+            search_results = s.gpsearch_album(entry[6:])
+            if search_results != False:
+                dlWidgets.append(gpAlbum(search_results))
 
-                # track after parse: m/T2udbfj3fuixwpbos76j7qnixza?t=Let_It_Happen_-_Tame_Impala
-                # pl after parse: playlist/AMaBXymHqRhQ9A79nGWS_zkVJLp-tuk7_neTefL7f8a2nWRi5sonzwZ9cuYyHqGwJQbefA_jcWakZgeiD2FncspLGNRjRSkslg%3D%3D
-                # album after parse: m/Bfinyskmfffl7mnb5gghboinjbu?t=Currents_-_Tame_Impala
+        elif entry.startswith(("http://","https://","www.","youtube.com","play.google")):
+            # if true, start parsing URL
+            # remove unnecessary prefixes
+            urlentry = entry
+            for i in ["http://","https://","www.","youtube.com","play.google",".com","/music/"]:
+                urlentry = urlentry.split(i)[-1]
 
-                # for GP: note that album ids start with "B" and tracks start with "T"
-                type = "none"
-                id = "-"
-                if "play.google" in entry:
-                    if urlentry.startswith("m/T"): # track URL
-                        id = urlentry[2:].split("?t=")[0]
-                        type = "gp track"
-                    if urlentry.startswith("m/B"): # album URL
-                        id = urlentry[2:].split("?t=")[0]
-                        type = "gp album"
-                    if urlentry.startswith("playlist/"):
-                        id = urlentry[9:-6] + "=="
-                        type = "gp playlist"
+            # track after parse: m/T2udbfj3fuixwpbos76j7qnixza?t=Let_It_Happen_-_Tame_Impala
+            # pl after parse: playlist/AMaBXymHqRhQ9A79nGWS_zkVJLp-tuk7_neTefL7f8a2nWRi5sonzwZ9cuYyHqGwJQbefA_jcWakZgeiD2FncspLGNRjRSkslg%3D%3D
+            # album after parse: m/Bfinyskmfffl7mnb5gghboinjbu?t=Currents_-_Tame_Impala
 
-                elif "youtube" in entry:
-                    s.log("YT not supported yet")
-                else:
-                    s.log("URL parsing failed")
-                s.log("OSI: URL parsed")
+            # for GP: note that album ids start with "B" and tracks start with "T"
+            type = "none"
+            id = "-"
+            if "play.google" in entry and gplogin != False:
+                if urlentry.startswith("m/T"): # track URL
+                    id = urlentry[2:].split("?t=")[0]
+                    type = "gp track"
+                if urlentry.startswith("m/B"): # album URL
+                    id = urlentry[2:].split("?t=")[0]
+                    type = "gp album"
+                if urlentry.startswith("playlist/"):
+                    id = urlentry[9:-6] + "=="
+                    type = "gp playlist"
 
-                if type == "gp track":
-                    dlWidgets.append(gpTrack([s.gp_get_track_data(api.get_track_info(id))]))
+            elif "youtube" in entry:
+                if urlentry.startswith("/playlist?list="):
+                    id = urlentry[15:]
+                    type = "yt playlist"
+            else:
+                s.log("URL parsing failed")
+            s.log("OSI: URL parsed")
 
-                if type == "gp playlist":
-                    search_result = api.get_shared_playlist_contents(id)
-                    web_result = webapi.get_shared_playlist_info(id)
-                    pl_info = [
-                                fltr(web_result["title"]),
-                                fltr(web_result["author"]),
-                                str(web_result["num_tracks"]),
-                                fltr(web_result["description"]),
-                              ]
-                    dlWidgets.append(gpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
+            if type == "gp track":
+                dlWidgets.append(gpTrack([s.gp_get_track_data(api.get_track_info(id))]))
 
-                if type == "gp album":
-                    dlWidgets.append(gpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
+            if type == "gp playlist":
+                search_result = api.get_shared_playlist_contents(id)
+                web_result = webapi.get_shared_playlist_info(id)
+                pl_info = [
+                            fltr(web_result["title"]),
+                            fltr(web_result["author"]),
+                            str(web_result["num_tracks"]),
+                            fltr(web_result["description"]),
+                          ]
+                dlWidgets.append(gpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
+
+            if type == "gp album":
+                dlWidgets.append(gpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
+
+            if type == "yt playlist":
+                trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&key="+settings["yt_api_key"])
+                trackdata = trackres.json()["items"]
+                plres = requests.get("https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id="+id+"&key="+settings["yt_api_key"])
+                pldata = plres.json()["items"][0]
+                pldata_parsed = [pldata["snippet"]["title"], pldata["snippet"]["channelTitle"], pldata["contentDetails"]["itemCount"]]
+                dlWidgets.append(ytMulti([s.yt_get_track_data(x) for x in trackdata], pldata_parsed))
 
 
-            elif entry != "" or entry.startswith("gp "):
-                # not a command or URL: default behaviour is to search GP for single track
-                search_results = s.gpsearch_track(entry)
-                if search_results != False:
-                    dlWidgets.append(gpTrack(search_results))
+        elif entry != "" and gplogin != False:
+            # not a command or URL: default behaviour is to search GP for single track
+            search_results = s.gpsearch_track(entry)
+            if search_results != False:
+                dlWidgets.append(gpTrack(search_results))
 
     def dl_delete(s, object):
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
@@ -1266,10 +1274,13 @@ class mainUI:
 
 
     def yt_get_track_data(s, track):
+        try: vid_id = track["contentDetails"]["videoId"]
+        except: vid_id = track["id"]["videoId"]
+
         return [fltr(str(track["snippet"]["title"])),
                 fltr(str(track["snippet"]["channelTitle"])),
                 str(track["snippet"]["thumbnails"]["high"]["url"]),
-                str(track["id"]["videoId"])]
+                str(vid_id)]
 
     def gp_get_track_data(s, track):
         return [fltr(str(track.get("title"))),
@@ -1463,7 +1474,7 @@ class dlManager:
             root.after(250,s.process_downloads)
         s.refreshvalues()
 
-    def yt_download(s, track): # download from youtube URL to filename
+    def yt_download(s, track): # download from youtube data to filename
         s.idle = False
         s.count_ytcomplete += 1
         s.refreshvalues()
@@ -1801,7 +1812,7 @@ class ytLine(dlLine):
 
 class ytSingle(ytLine):
     def __init__(s, tracklist):
-        gpLine.__init__(s)
+        ytLine.__init__(s)
         s.tracklist = tracklist
         s.multi_index = 0 # which song to select in the tracklist
         s.generate()
@@ -1878,10 +1889,48 @@ class ytSingle(ytLine):
             s.parent.generate()
 
 class ytMulti(ytLine):
-    def __init__(s):
+    def __init__(s, tracklist, plinfo):
         ytLine.__init__(s)
+        s.tracklist = tracklist
+        s.plinfo = plinfo
+        s.multi_index = 0 # which song to select in the tracklist
+        s.generate()
+
     def __str__(s):
         return "ytMulti"
+
+    def ready(s):
+        print(len(s.tracklist))
+        DLMAN.queue_yt(s.tracklist)
+        s.wrapper.destroy()
+
+    def generate(s):
+        dlLine.generate(s) # regenerate mainframe
+
+        curinfo = s.plinfo
+        s.bordercolor = "#fe0000"
+        s.bordercontrast = "#ffffff"
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Playlist")
+        s.typelabel.pack(side=LEFT,fill=Y)
+
+        s.image = Image.open("etc/yt.png")
+        s.image = s.image.resize((50,50), Image.ANTIALIAS)
+        s.photo = ImageTk.PhotoImage(s.image)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe.pack_propagate(0)
+        s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
+        s.photolabel.pack()
+        s.photoframe.pack(side=LEFT)
+
+        s.set_color(s.bordercolor)
+        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel.pack(side=LEFT,padx=(10,0))
+        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel.pack(side=LEFT,padx=(10,0))
+        s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=12,text=str(curinfo[2])+" tracks")
+        s.albumlabel.pack(side=LEFT,padx=(10,0))
+        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton.pack(side=RIGHT,padx=(0,8))
 
 class stWidget:
     def __init__(s,key,label,col,row,type,altkey=None): # internal settings key, label for user, column in stframe, row in stframe, type of setting (text, bool, file, folder)
