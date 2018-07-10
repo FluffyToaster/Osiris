@@ -210,7 +210,7 @@ def fltr(orig_string, hard=True):
         for char in changelist:
             temp = temp.replace(char,"_")
     if hard:
-        return bytes(temp, 'utf-8').decode('utf-8','ignore')
+        return bytes(temp, 'utf-8').decode('utf-8','replace')
         #return ''.join(filter(lambda x: x in string.printable, temp))
     return temp
 
@@ -227,7 +227,7 @@ def RGBToHex(rgb):
 
 # TOPLEVEL TEXT INTERACTION DEFS
 def selectFile(filepath=settings["datapath"]): # function used by all 'text' functions to get the content of osData.txt, also applicable for other .txt files
-    with open(filepath,"r") as selectedFile:
+    with open(filepath,"r",encoding="utf-8") as selectedFile:
         data = [x.strip('\n') for x in selectedFile.readlines()]
     return data
 
@@ -243,9 +243,9 @@ def writeToText(writeList,section): # replaces the current content of section wi
     data[dataStartIndex:dataEndIndex] = []
     for i in writeList[::-1]:
         data.insert(dataStartIndex,i)
-    dataWriteFile = open(settings["datapath"],"w")
+    dataWriteFile = open(settings["datapath"],"w",encoding="utf-8")
     for i in data:
-        dataWriteFile.write(str(i)+"\n")
+        dataWriteFile.write(i+"\n")
     dataWriteFile.close()
 
 def readFromText(section): # gets the content of a section
@@ -260,7 +260,7 @@ def delText(section): # deletes a section
     data = selectFile()
     try: data[(data.index("="+section+"=")):(data.index("=/"+section+"=")+1)] = []
     except: return False
-    dataWriteFile = open(settings["datapath"],"w")
+    dataWriteFile = open(settings["datapath"],"w",encoding="utf-8")
     for i in data: dataWriteFile.write(i+"\n")
     dataWriteFile.close()
     return True
@@ -1134,10 +1134,6 @@ class mainUI:
             urlentry = entry
             for i in ["http://","https://","www.","youtube.com","play.google",".com","/music/"]:
                 urlentry = urlentry.split(i)[-1]
-
-            # track after parse: m/T2udbfj3fuixwpbos76j7qnixza?t=Let_It_Happen_-_Tame_Impala
-            # pl after parse: playlist/AMaBXymHqRhQ9A79nGWS_zkVJLp-tuk7_neTefL7f8a2nWRi5sonzwZ9cuYyHqGwJQbefA_jcWakZgeiD2FncspLGNRjRSkslg%3D%3D
-            # album after parse: m/Bfinyskmfffl7mnb5gghboinjbu?t=Currents_-_Tame_Impala
 
             # for GP: note that album ids start with "B" and tracks start with "T"
             type = "none"
