@@ -25,7 +25,6 @@ import tkinter.ttk as ttk
 from ctypes import windll
 
 # third party libraries
-import pprint
 import requests
 from mutagen.mp3 import EasyMP3, MP3
 from mutagen.id3 import ID3, APIC
@@ -695,7 +694,6 @@ class mainUI:
                 elif len(matchcrit(s.UI,s.oldpaths)) != 0:
                     s.mpplay(matchcrit(s.UI,s.oldpaths))
         elif s.cflag == "gp":
-            print(allfiles[5])
             s.gpsongs = [x for x in allfiles if "/GP\\" in x]
             print("test, gpsongs length is "+str(len(s.gpsongs)))
             s.gpsongs.sort(key=lambda x: os.path.getmtime(x))
@@ -1153,6 +1151,9 @@ class mainUI:
                 if urlentry.startswith("/playlist?list="):
                     id = urlentry[15:]
                     type = "yt playlist"
+                if urlentry.startswith("/watch?v="):
+                    id = urlentry[9:]
+                    type = "yt track"
             else:
                 s.log("URL parsing failed")
             s.log("OSI: URL parsed")
@@ -1174,10 +1175,14 @@ class mainUI:
             if type == "gp album":
                 dlWidgets.append(gpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
 
+            if type == "yt track":
+                trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+id+"&key="+settings["yt_api_key"])
+                print(s.yt_get_track_data(trackres.json()["items"][0]))
+                dlWidgets.append(ytSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
+
             if type == "yt playlist":
                 trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&key="+settings["yt_api_key"])
                 trackdata = trackres.json()["items"]
-                print(trackdata[0])
                 plres = requests.get("https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id="+id+"&key="+settings["yt_api_key"])
                 pldata = plres.json()["items"][0]
                 pldata_parsed = [pldata["snippet"]["title"], pldata["snippet"]["channelTitle"], pldata["contentDetails"]["itemCount"]]
@@ -1272,7 +1277,9 @@ class mainUI:
 
     def yt_get_track_data(s, track):
         try: vid_id = track["contentDetails"]["videoId"]
-        except: vid_id = track["id"]["videoId"]
+        except:
+            try: vid_id = track["id"]["videoId"]
+            except: vid_id = track["id"]
 
         return [fltr(str(track["snippet"]["title"])),
                 fltr(str(track["snippet"]["channelTitle"])),
@@ -1466,7 +1473,7 @@ class dlManager:
             s.count_ytcomplete = 0
             s.count_yttotal = 0
             s.state = "waiting"
-            print("waiting") # slow update cycle to finish
+            OSI.mprefresh()
         else:
             root.after(250,s.process_downloads)
         s.refreshvalues()
@@ -1482,7 +1489,6 @@ class dlManager:
         os.makedirs(os.path.dirname(name), exist_ok=True)
         if not(os.path.isfile(name)):
             with YoutubeDL(ydl_opts) as ydl:
-                OSI.log("YouTube download started")
                 s.idle_watchdog(url)
                 ydl.download([url])
                 for i in os.listdir():
@@ -1501,7 +1507,6 @@ class dlManager:
     def idle_watchdog(s, id): # looks for the signs that a song has started converting
         for i in os.listdir():
             if i.endswith(id+".mp3") and os.path.getsize(i) < 100: # found a match
-                print("KOBE")
                 s.idle = True
                 return
         s.refreshvalues()
