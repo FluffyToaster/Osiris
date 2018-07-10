@@ -1107,7 +1107,6 @@ class mainUI:
             elif entry == "dl":
                 # go through all open widgets and tell them to ready
                 for dl in dlWidgets:
-                    print("beem")
                     dl.ready()
                 for dl in dlWidgets:
                     del dlWidgets[dlWidgets.index(dl)]
@@ -1362,7 +1361,6 @@ class dlManager:
         # mainframe not packed (this is done by login method)
 
     def download(s): # publicly accessible download command that is split into further tasks
-        print("dl")
         if len(s.gptracks) + len(s.yttracks) > 0:
             if len(s.gptracks) > 0:
                 s.state = "downloading gp"
@@ -1395,7 +1393,6 @@ class dlManager:
         s.idle = False
         s.count_gpcomplete += 1
         s.refreshvalues()
-        print("gpdl")
         '''
         track contents by index:
             (0) title
@@ -1467,6 +1464,8 @@ class dlLine: # ABSTRACT
         s.mainframe.destroy()
         s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor)
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
+        try: s.multiframe.destroy()
+        except: pass # no multiframe to destroy
 
     def set_color(s,color):
         if type(color) != str and len(color) == 3:
@@ -1500,6 +1499,7 @@ class gpTrack(gpLine):
         gpLine.__init__(s)
         s.tracklist = tracklist
         s.multi_index = 0 # which song to select in the tracklist
+        s.multilines = [] # initially no multilines
         s.generate()
 
     def __str__(s):
@@ -1538,10 +1538,45 @@ class gpTrack(gpLine):
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
 
+        if len(s.tracklist) > 1: # if we actually have alternatives to show, make the multilist
+            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.multipack)
+            s.multibutton.pack(side=RIGHT,padx=(0,8))
+            s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
+            for i in range(len(s.tracklist)):
+                if i != s.multi_index: # only generate multilines for nonselected tracks
+                    s.multilines.append(s.gpTrackMulti(s, s.tracklist[i], i))
+
+    def multipack(s):
+        s.multibutton.configure(command=s.multiforget)
+        s.multiframe.pack(side=TOP,fill=X)
+
+    def multiforget(s):
+        s.multibutton.configure(command=s.multipack)
+        s.multiframe.pack_forget()
+
     def ready(s): # send relevant data to dlManager
         DLMAN.queue_gp([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
-        print("bingo")
+
+    class gpTrackMulti: # gpTrack subclass that just displays a small line
+        def __init__(s, parent, info, my_index):
+            s.parent = parent
+            s.info = info
+            s.my_index = my_index
+            s.mainframe = tk.Frame(s.parent.multiframe,bg=tkbuttoncolor)
+            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[0])
+            s.titlelabel.pack(side=LEFT,padx=(106,0))
+            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[1])
+            s.artistlabel.pack(side=LEFT,padx=(10,0))
+            s.albumlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=35,text=info[2])
+            s.albumlabel.pack(side=LEFT,padx=(10,0))
+            s.btn = tk.Button(s.mainframe,text="S",width=2,relief='ridge',bd=2,bg=tkbuttoncolor,fg=tktxtcol,activebackground=tkbgcolor,activeforeground=tktxtcol,command=s.select)
+            s.btn.pack(side=RIGHT,padx=(0,10),pady=2)
+            s.mainframe.pack(side=TOP,fill=X,padx=1,pady=(0,1))
+
+        def select(s):
+            s.parent.multi_index = s.my_index
+            s.parent.generate()
 
 class gpAlbum(gpLine):
     def __init__(s, albumlist):
@@ -1558,7 +1593,6 @@ class gpAlbum(gpLine):
         album_tracks = api.get_album_info(s.albumlist[s.multi_index][4])["tracks"]
         DLMAN.queue_gp([OSI.gp_get_track_data(x) for x in album_tracks])
         s.wrapper.destroy()
-        print("bongo")
 
     def generate(s):
         dlLine.generate(s) # regenerate mainframe
@@ -1613,7 +1647,6 @@ class gpPlaylist(gpLine):
     def ready(s): # send relevant data to dlManager
         DLMAN.queue_gp(s.tracklist)
         s.wrapper.destroy()
-        print("b a n g o")
 
     def generate(s):
         dlLine.generate(s) # regenerate mainframe
