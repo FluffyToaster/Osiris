@@ -1181,12 +1181,22 @@ class mainUI:
                 dlWidgets.append(ytSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
 
             if type == "yt playlist":
-                trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&key="+settings["yt_api_key"])
-                trackdata = trackres.json()["items"]
                 plres = requests.get("https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id="+id+"&key="+settings["yt_api_key"])
                 pldata = plres.json()["items"][0]
                 pldata_parsed = [pldata["snippet"]["title"], pldata["snippet"]["channelTitle"], pldata["contentDetails"]["itemCount"]]
-                dlWidgets.append(ytMulti([s.yt_get_track_data(x) for x in trackdata], pldata_parsed))
+
+                initial_trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&key="+settings["yt_api_key"])
+                initial_trackdata = initial_trackres.json()["items"]
+                print(initial_trackres.json())
+                if pldata_parsed[int(2)] > 50:
+                    # if data longer than what can be gotten from 1 request, keep going
+                    pagetoken = initial_trackres.json()["nextPageToken"]
+                    while 1:
+                        next_trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&pageToken="+pagetoken+"&key="+settings["yt_api_key"])
+                        initial_trackdata += next_trackres.json()["items"]
+                        try: pagetoken = next_trackres.json()["nextPageToken"]
+                        except: break
+                dlWidgets.append(ytMulti([s.yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
 
 
         elif entry != "" and gplogin != False:
@@ -1499,10 +1509,27 @@ class dlManager:
             s.idle = True
             s.refreshvalues()
         imagepath = "/".join(name.split("/")[:-1])+"/"+url+".png"
-        track[4].save(imagepath)
+        s.generate_image_data([track]).save(imagepath)
         OSI.dlalbumartify(name, imagepath)
         file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
         OSI.gptagify(name, file_data)
+
+    def generate_image_data(s, tracklist, _index=None):
+        if _index != None:
+            curinfo = tracklist[_index]
+        else:
+            curinfo = tracklist[0]
+        image = Image.open(BytesIO(requests.get(curinfo[2]).content))
+        borders = OSI.findborders(image)
+        image = image.crop(borders) # crop image to borders
+        maincolor = colorFromImage(image) # get the prevalent color
+        background = Image.new("RGB", (480,480),maincolor)
+        background.paste(image, (borders[0],60+borders[1]))
+        if _index != None:
+            tracklist[_index].append(background.copy())
+            tracklist[_index].append(maincolor)
+        else:
+            return background.copy()
 
     def idle_watchdog(s, id): # looks for the signs that a song has started converting
         for i in os.listdir():
@@ -1820,17 +1847,6 @@ class ytLine(dlLine):
     def __str__(s):
         return "ytLine (INTERFACE!)"
 
-    def generate_image_data(s, tracklist, _index):
-        curinfo = tracklist[_index]
-        image = Image.open(BytesIO(requests.get(curinfo[2]).content))
-        borders = OSI.findborders(image)
-        image = image.crop(borders) # crop image to borders
-        maincolor = colorFromImage(image) # get the prevalent color
-        background = Image.new("RGB", (480,480),maincolor)
-        background.paste(image, (borders[0],60+borders[1]))
-        tracklist[_index].append(background.copy())
-        tracklist[_index].append(maincolor)
-
 class ytSingle(ytLine):
     def __init__(s, tracklist):
         ytLine.__init__(s)
@@ -1848,7 +1864,7 @@ class ytSingle(ytLine):
     def generate(s):
         dlLine.generate(s) # regenerate mainframe
 
-        s.generate_image_data(s.tracklist, s.multi_index) # appends image object and primary color to info
+        DLMAN.generate_image_data(s.tracklist, s.multi_index) # appends image object and primary color to info
         curinfo = s.tracklist[s.multi_index]
 
         s.bordercolor = curinfo[5]
@@ -1916,8 +1932,6 @@ class ytMulti(ytLine):
         return "ytMulti"
 
     def ready(s):
-        for i in range(len(s.tracklist)):
-            s.generate_image_data(s.tracklist, i)
         DLMAN.queue_yt(s.tracklist)
         s.wrapper.destroy()
 
