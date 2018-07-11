@@ -664,7 +664,13 @@ class mainUI:
 
     def mpfilesget(s): # updates allfiles and mp playcount using osData.txt
         global allfiles
-        allfiles = readFromText("mp allfiles")
+        result = readFromText("mp allfiles")
+        if result != False:
+            allfiles = result
+        else:
+            s.log("OSI: OwO little fucky wucky")
+            s.log("OSI: pls restart")
+            s.log("OSI: (mp allfiles in osData.txt)")
 
     def mpinterpret(s,entry): # interprets the given entry command in the context of the music player
         s.entry = " ".join(entry.split())
@@ -1442,6 +1448,7 @@ class dlManager:
         s.count_gptotal = 0
         s.count_ytcomplete = 0
         s.count_yttotal = 0
+        s.count_convtotal = 0
         s.gptracks = []
         s.yttracks = []
         s.staticlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=40)
@@ -1454,6 +1461,10 @@ class dlManager:
         s.ytlabel.pack(side=LEFT)
         s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
         s.ytstatus.pack(side=LEFT)
+        s.convlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=14,text="  Converting: ")
+        s.convlabel.pack(side=LEFT)
+        s.convstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=10)
+        s.convstatus.pack(side=LEFT)
         s.refreshvalues()
         # mainframe not packed (this is done by login method)
 
@@ -1483,7 +1494,7 @@ class dlManager:
             s.count_ytcomplete = 0
             s.count_yttotal = 0
             s.state = "waiting"
-            OSI.mprefresh()
+            root.after(500,lambda: OSI.mprefresh())
         else:
             root.after(250,s.process_downloads)
         s.refreshvalues()
@@ -1508,11 +1519,14 @@ class dlManager:
             OSI.log("OSI: YT DL skipped")
             s.idle = True
             s.refreshvalues()
+            return
         imagepath = "/".join(name.split("/")[:-1])+"/"+url+".png"
         s.generate_image_data([track]).save(imagepath)
         OSI.dlalbumartify(name, imagepath)
         file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
         OSI.gptagify(name, file_data)
+        s.count_convtotal -= 1
+        s.refreshvalues()
 
     def generate_image_data(s, tracklist, _index=None):
         if _index != None:
@@ -1535,6 +1549,7 @@ class dlManager:
         for i in os.listdir():
             if i.endswith(id+".mp3") and os.path.getsize(i) < 100: # found a match
                 s.idle = True
+                s.count_convtotal += 1
                 return
         s.refreshvalues()
         root.after(100, lambda: s.idle_watchdog(id)) # else, keep looking
@@ -1591,6 +1606,7 @@ class dlManager:
             s.staticlabel.configure(text="Status: downloading from YouTube")
         s.gpstatus.configure(text=str(s.count_gpcomplete)+"/"+str(s.count_gptotal))
         s.ytstatus.configure(text=str(s.count_ytcomplete)+"/"+str(s.count_yttotal))
+        s.convstatus.configure(text=str(s.count_convtotal)+" tracks")
 
     def queue_gp(s,tracklist): # add tracks to the gp queue
         for i in tracklist:
