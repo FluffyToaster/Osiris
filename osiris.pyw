@@ -8,7 +8,7 @@
 import time
 starting_time = time.time()
 def t_since_start(): print(time.time() - starting_time) # call this anywhere to check delays in startup time
-import string
+import glob
 import tkinter as tk
 from tkinter import END,LEFT,RIGHT,TOP,BOTTOM,N,E,S,W,NS,CENTER,RAISED,SUNKEN,X,Y,BOTH,filedialog
 import subprocess
@@ -77,6 +77,9 @@ tktxtcol = "#D3D7DE"
 tkentrytextcolor = tktxtcol
 tkbuttontextcolor = tktxtcol
 tkbuttontextcoloract = tktxtcol
+
+# mp settings
+ALLOWED_FILETYPES = [".mp3"] # could also allows ".flac",".m4a",".wav" but would increase time to refresh
 
 # db settings
 dbdir = "database/"
@@ -236,7 +239,7 @@ def writeToText(writeList,section): # replaces the current content of section wi
         dataStartIndex = data.index("="+section+"=")+1
         dataEndIndex = data.index("=/"+section+"=")
     except:
-        data += ["="+section+"="] + ["=/"+section+"="]
+        data += ["="+section+"="] + "\n" + ["=/"+section+"="]
         dataStartIndex = data.index("="+section+"=")+1
         dataEndIndex = data.index("=/"+section+"=")
     data[dataStartIndex:dataEndIndex] = []
@@ -654,12 +657,16 @@ class mainUI:
 #################################### MUSIC DEFS #####################################################################
 
     def mprefresh(s): # refreshes the database index in osData.txt
-        diskdata = []
-        diskdata += [os.path.join(settings["searchdir"],name)
+        '''diskdata = [os.path.join(settings["searchdir"],name)
             for settings["searchdir"], dirs, files in os.walk(settings["searchdir"])
             for name in files
-            if name.endswith((".mp3",".flac",".m4a",".wav"))]
-        writeToText(diskdata,"mp allfiles")
+            if name.endswith((".mp3",".flac",".m4a",".wav"))]'''
+        
+        diskdata = []
+        for ftype in ALLOWED_FILETYPES:
+            diskdata.extend(glob.glob(settings["searchdir"]+"**/*"+ftype, recursive = True))
+            
+        writeToText(diskdata,"mp allfiles")        
         s.mpfilesget()
 
     def mpfilesget(s): # updates allfiles and mp playcount using osData.txt
