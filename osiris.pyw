@@ -60,7 +60,10 @@ fontset2 = ("Roboto Mono", "11")
 smallfont = ("Roboto Mono", "8")
 italicfont = ("Roboto Mono", "10", "italic")
 boldfont = ("Roboto Mono", "11", "bold")
-tkheight = 1030
+if settings["large_taskbar"] == "False":
+    tkheight = 1042
+else:
+    tkheight = 1030
 tkwidth = 1920
 tkpadding = 10
 tklogheight = 40 # 25 under height 600
@@ -683,8 +686,8 @@ class mainUI:
         s.entry = " ".join(entry.split())
         s.cflag = entry.split()[0]
         s.UI = entry[len(s.cflag)+1:]
-        s.oldpaths = musicPaths
-        s.newpaths = musicPaths
+        s.oldpaths = musicPaths[:]
+        s.newpaths = musicPaths[:]
 
         # start by finding what the new desired paths are
         # also run code that doesn't influence paths, eg: playing, refreshing, saving
@@ -707,8 +710,7 @@ class mainUI:
                 elif len(matchcrit(s.UI,s.oldpaths)) != 0:
                     s.mpplay(matchcrit(s.UI,s.oldpaths))
         elif s.cflag == "gp":
-            s.gpsongs = [x for x in allfiles if "/GP\\" in x]
-            print("test, gpsongs length is "+str(len(s.gpsongs)))
+            s.gpsongs = [x for x in allfiles if "\\GP\\" in x.replace("/","\\")]
             s.gpsongs.sort(key=lambda x: os.path.getmtime(x))
             if s.UI == "": temp = -1
             else: temp = -1*int(s.UI)
@@ -773,11 +775,17 @@ class mainUI:
                 if len(matchcrit(s.cflag+" "+s.UI,s.oldpaths)) != 0:
                     s.mpplay(matchcrit(s.cflag+" "+s.UI,s.oldpaths))
 
+        for i in range(len(s.newpaths)):
+            s.newpaths[i] = "\\".join(s.newpaths[i].split("\\"))
+            s.newpaths[i] = "\\".join(s.newpaths[i].split("/"))
+        
         # now that the new paths are known, update the widgets accordingly
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
             musicWidgets.append(musicLine(i))
+
         for i in [x for x in s.oldpaths if x not in s.newpaths]:
             musicWidgets[musicPaths.index(i)].remove()
+            
         # place any commands that should run after every entry below this line
         try: s.pliwrapper.tkraise()
         except: pass
@@ -928,7 +936,6 @@ class mainUI:
             else: # open aegis/text/folder
                 if flag != "o":
                     comm = flag + " " + comm
-                    print("Concatenated comm to "+comm)
                 matchresult = matchcrit(comm,dbstate[1])
                 if matchresult != []:
                     matchresult = matchresult[0]
@@ -1190,7 +1197,6 @@ class mainUI:
 
             if type == "yt track":
                 trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+id+"&key="+settings["yt_api_key"])
-                print(s.yt_get_track_data(trackres.json()["items"][0]))
                 dlWidgets.append(ytSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
 
             if type == "yt playlist":
@@ -1200,7 +1206,6 @@ class mainUI:
 
                 initial_trackres = requests.get("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="+id+"&key="+settings["yt_api_key"])
                 initial_trackdata = initial_trackres.json()["items"]
-                print(initial_trackres.json())
                 if pldata_parsed[int(2)] > 50:
                     # if data longer than what can be gotten from 1 request, keep going
                     pagetoken = initial_trackres.json()["nextPageToken"]
@@ -1590,7 +1595,6 @@ class dlManager:
         if os.path.isfile(songpath) and os.path.getsize(songpath) > 0:
             OSI.log("OSI: Skipping (already downloaded)")
         else:
-            print("dl start")
             OSI.dl_url2file(str(api.get_stream_url(track[5])),songpath)
             if "albumArt.png" not in os.listdir(folderpath):
                 try:
@@ -1602,7 +1606,6 @@ class dlManager:
             OSI.gptagify(songpath,track)
 
         s.idle = True
-        print("done boi")
 
     def refreshvalues(s): # update the tracking labels
         if s.state == "waiting":
@@ -2139,26 +2142,28 @@ class pliLine:
 
 class musicLine:
     def __init__(s,path):
-
-        s.path = "\\".join(path.split("\\"))
+        s.path = path
         musicPaths.append(s.path)
         s.index = musicPaths.index(s.path)
 
+        # first, getting data from path
+        temp = s.path.split("\\")[-3:]
+        s.title_name = temp[-1][:-4]
+        if isint(s.title_name.split()[0]):
+            s.title_name = " ".join(s.title_name.split()[1:])
+        s.artist_name = temp[-3]
+        s.album_name = temp[-2]
+        
         # defining single song widget layout
         s.mainframe = tk.Frame(OSI.mpframe,highlightthickness=0,width=tkwidth-20,height=28,bd=0)
         s.mainframe.pack_propagate(0)
         s.indexlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=3,anchor=W,text=(("00"+str(int(s.index)+1))[-2:]))
         s.indexlabel.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=45,anchor=W)
-        if isint(s.path.split("/")[-1].split("\\")[3].split()[0]):
-            s.titlelabel.configure(text=" ".join(s.path.split("/")[-1].split("\\")[3].split()[1:])[:-4])
-        else:
-            s.titlelabel.configure(text=" ".join(s.path.split("/")[-1].split("\\")[3].split())[:-4])
-
+        s.titlelabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=45,anchor=W, text=s.title_name)
         s.titlelabel.pack(side=LEFT,padx=(0,15))
-        s.artistlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=30,anchor=W,text=s.path.split("/")[-1].split("\\")[1])
+        s.artistlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=30,anchor=W,text=s.artist_name)
         s.artistlabel.pack(side=LEFT,padx=(0,15))
-        s.albumlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=25,anchor=W,text=s.path.split("/")[-1].split("\\")[2])
+        s.albumlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=25,anchor=W,text=s.album_name)
         s.albumlabel.pack(side=LEFT)
         s.buttonframe = tk.Frame(s.mainframe,highlightthickness=0,bd=0,width=60,height=s.mainframe.cget("height"))
         s.buttonframe.pack_propagate(0)
