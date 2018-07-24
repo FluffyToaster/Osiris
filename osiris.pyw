@@ -664,12 +664,12 @@ class mainUI:
             for settings["searchdir"], dirs, files in os.walk(settings["searchdir"])
             for name in files
             if name.endswith((".mp3",".flac",".m4a",".wav"))]'''
-        
+
         diskdata = []
         for ftype in ALLOWED_FILETYPES:
             diskdata.extend(glob.glob(settings["searchdir"]+"**/*"+ftype, recursive = True))
-            
-        writeToText(diskdata,"mp allfiles")        
+
+        writeToText(diskdata,"mp allfiles")
         s.mpfilesget()
 
     def mpfilesget(s): # updates allfiles and mp playcount using osData.txt
@@ -778,14 +778,14 @@ class mainUI:
         for i in range(len(s.newpaths)):
             s.newpaths[i] = "\\".join(s.newpaths[i].split("\\"))
             s.newpaths[i] = "\\".join(s.newpaths[i].split("/"))
-        
+
         # now that the new paths are known, update the widgets accordingly
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
             musicWidgets.append(musicLine(i))
 
         for i in [x for x in s.oldpaths if x not in s.newpaths]:
             musicWidgets[musicPaths.index(i)].remove()
-            
+
         # place any commands that should run after every entry below this line
         try: s.pliwrapper.tkraise()
         except: pass
@@ -1622,11 +1622,13 @@ class dlManager:
         for i in tracklist:
             s.gptracks.append(i)
             s.count_gptotal += 1
+        s.refreshvalues()
 
     def queue_yt(s,tracklist): # add tracks to the yt queue
         for i in tracklist:
             s.yttracks.append(i)
             s.count_yttotal += 1
+        s.refreshvalues()
 
 class dlLine: # ABSTRACT
     def __init__(s):
@@ -1664,6 +1666,7 @@ class dlLine: # ABSTRACT
 class gpLine(dlLine):
     def __init__(s):
         dlLine.__init__(s)
+
     def __str__(s):
         return "gpLine (INTERFACE!)"
 
@@ -1707,11 +1710,13 @@ class gpTrack(gpLine):
         s.artistlabel.pack(side=LEFT,padx=(10,0))
         s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[2])
         s.albumlabel.pack(side=LEFT,padx=(10,0))
-        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground="#c41313",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
+        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton.pack(side=RIGHT,padx=(0,8))
 
         if len(s.tracklist) > 1: # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.multipack)
+            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=tkbuttoncolor,activeforeground=tktxtcol,command=s.multipack)
             s.multibutton.pack(side=RIGHT,padx=(0,8))
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
@@ -1797,9 +1802,11 @@ class gpAlbum(gpLine):
         s.artistlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
+        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton.pack(side=RIGHT,padx=(0,8))
 
         if len(s.albumlist) > 1: # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.multipack)
+            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=tkbuttoncolor,activeforeground=tktxtcol,command=s.multipack)
             s.multibutton.pack(side=RIGHT,padx=(0,8))
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.albumlist)):
@@ -1865,6 +1872,8 @@ class gpPlaylist(gpLine):
         s.albumlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
+        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton.pack(side=RIGHT,padx=(0,8))
 
 class ytLine(dlLine):
     def __init__(s):
@@ -1919,9 +1928,11 @@ class ytSingle(ytLine):
         s.artistlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
+        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton.pack(side=RIGHT,padx=(0,8))
 
         if len(s.tracklist) > 1: # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.multipack)
+            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=tkbuttoncolor,activeforeground=tktxtcol,command=s.multipack)
             s.multibutton.pack(side=RIGHT,padx=(0,8))
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
@@ -1988,6 +1999,8 @@ class ytMulti(ytLine):
         s.albumlabel.pack(side=LEFT,padx=(10,0))
         s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
+        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton.pack(side=RIGHT,padx=(0,8))
 
 class stWidget:
     def __init__(s,key,label,col,row,type,altkey=None): # internal settings key, label for user, column in stframe, row in stframe, type of setting (text, bool, file, folder)
@@ -2153,7 +2166,7 @@ class musicLine:
             s.title_name = " ".join(s.title_name.split()[1:])
         s.artist_name = temp[-3]
         s.album_name = temp[-2]
-        
+
         # defining single song widget layout
         s.mainframe = tk.Frame(OSI.mpframe,highlightthickness=0,width=tkwidth-20,height=28,bd=0)
         s.mainframe.pack_propagate(0)
