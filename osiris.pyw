@@ -1458,12 +1458,12 @@ class dlManager:
         s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=30, width=tkdlprogresswidth)
         s.mainframe.pack_propagate(0)
         s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=tkbgcolor)
+        s.progress_bar_wrapper.place(width=tkdlprogresswidth, height=3)
         s.progress_bar_wrapper.pack_propagate(0)
         s.progress_bar_done = tk.Frame(s.progress_bar_wrapper, bg="green", height=3, width=0, bd = 0)
         s.progress_bar_busy = tk.Frame(s.progress_bar_wrapper, bg="#469bfc", height=3, width=0, bd = 0)
         s.progress_bar_queued = tk.Frame(s.progress_bar_wrapper, bg="grey", height=3, width=0, bd = 0)
         for i in [s.progress_bar_done, s.progress_bar_busy, s.progress_bar_queued]:
-            i.pack(side=LEFT)
             i.pack_propagate(0)
 
         s.state = "waiting"
@@ -1476,21 +1476,49 @@ class dlManager:
         s.gptracks = []
         s.yttracks = []
         s.staticlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=40)
-        s.staticlabel.pack(side=LEFT,pady=(4,0))
+        s.staticlabel.pack(side=LEFT,pady=(1,0))
         s.gplabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4,text="GP: ")
-        s.gplabel.pack(side=LEFT,pady=(4,0))
+        s.gplabel.pack(side=LEFT,pady=(1,0))
         s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
-        s.gpstatus.pack(side=LEFT,pady=(4,0))
+        s.gpstatus.pack(side=LEFT,pady=(1,0))
         s.ytlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=6,text="  YT: ")
-        s.ytlabel.pack(side=LEFT,pady=(4,0))
+        s.ytlabel.pack(side=LEFT,pady=(1,0))
         s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
-        s.ytstatus.pack(side=LEFT,pady=(4,0))
+        s.ytstatus.pack(side=LEFT,pady=(1,0))
         s.convlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=14,text="  Converting: ")
-        s.convlabel.pack(side=LEFT,pady=(4,0))
+        s.convlabel.pack(side=LEFT,pady=(1,0))
         s.convstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=10)
-        s.convstatus.pack(side=LEFT,pady=(4,0))
+        s.convstatus.pack(side=LEFT,pady=(1,0))
         s.refreshvalues()
         # mainframe not packed (this is done by login method)
+
+    def refreshvalues(s): # update the tracking labels
+        if s.state == "waiting":
+            s.staticlabel.configure(text="Status: ready to download")
+        if s.state == "downloading gp":
+            s.staticlabel.configure(text="Status: downloading from Google Play")
+        if s.state == "downloading yt":
+            s.staticlabel.configure(text="Status: downloading from YouTube")
+        dltotal = s.count_gptotal + s.count_yttotal
+        if dltotal > 0:
+            if not s.bars_packed:
+                for i in [s.progress_bar_done, s.progress_bar_busy, s.progress_bar_queued]:
+                    i.pack(side=LEFT)
+                s.bars_packed = True
+            if s.state == "waiting":
+                s.progress_bar_done.configure(width=tkdlprogresswidth*(max(0,(s.count_gpcomplete+s.count_ytcomplete))/dltotal))
+                s.progress_bar_busy.configure(width=0)
+            else:
+                s.progress_bar_done.configure(width=tkdlprogresswidth*(max(0,(s.count_gpcomplete+s.count_ytcomplete-1))/dltotal))
+                s.progress_bar_busy.configure(width=tkdlprogresswidth/dltotal)
+            s.progress_bar_queued.configure(width=tkdlprogresswidth*(max(0,(dltotal-s.count_gpcomplete-s.count_ytcomplete))/dltotal))
+        else:
+            s.bars_packed = False
+            for i in [s.progress_bar_done, s.progress_bar_busy, s.progress_bar_queued]:
+                i.pack_forget()
+        s.gpstatus.configure(text=str(s.count_gpcomplete)+"/"+str(s.count_gptotal))
+        s.ytstatus.configure(text=str(s.count_ytcomplete)+"/"+str(s.count_yttotal))
+        s.convstatus.configure(text=str(s.count_convtotal)+" tracks")
 
     def download(s): # publicly accessible download command that is split into further tasks
         if len(s.gptracks) + len(s.yttracks) > 0:
@@ -1618,29 +1646,6 @@ class dlManager:
             OSI.gptagify(songpath,track)
 
         s.idle = True
-
-    def refreshvalues(s): # update the tracking labels
-        if s.state == "waiting":
-            s.staticlabel.configure(text="Status: ready to download")
-        if s.state == "downloading gp":
-            s.staticlabel.configure(text="Status: downloading from Google Play")
-        if s.state == "downloading yt":
-            s.staticlabel.configure(text="Status: downloading from YouTube")
-        dltotal = s.count_gptotal + s.count_yttotal
-        if dltotal > 0:
-            if not s.bars_packed:
-                s.progress_bar_wrapper.place(width=tkdlprogresswidth, height=3)
-                s.bars_packed = True
-
-            s.progress_bar_done.configure(width=tkdlprogresswidth*(max(0,(s.count_gpcomplete+s.count_ytcomplete-1))/dltotal))
-            s.progress_bar_busy.configure(width=tkdlprogresswidth/dltotal)
-            s.progress_bar_queued.configure(width=tkdlprogresswidth*(max(0,(dltotal-s.count_gpcomplete-s.count_ytcomplete))/dltotal))
-        else:
-            s.bars_packed = False
-            s.progress_bar_wrapper.place_forget()
-        s.gpstatus.configure(text=str(s.count_gpcomplete)+"/"+str(s.count_gptotal))
-        s.ytstatus.configure(text=str(s.count_ytcomplete)+"/"+str(s.count_yttotal))
-        s.convstatus.configure(text=str(s.count_convtotal)+" tracks")
 
     def queue_gp(s,tracklist): # add tracks to the gp queue
         for i in tracklist:
@@ -2245,7 +2250,7 @@ for i in range(3):
     wkWidgets.append(wkLine("herro "+str(i),1))
 
 # root operations first
-getattention(root)
+
 if settings["set_notitle"]=="True":
     OSI.buttonframe.bind('<B1-Motion>', move_window)
     OSI.buttonframe.bind('<Button-1>', def_delta)
@@ -2274,7 +2279,7 @@ for i in bindlist:
 
 # mp
 
-OSI.mpfilesget()
+OSI.mprefresh()
 
 # db
 OSI.glbentry.bind("<Key>", lambda x: root.after(10,OSI.responsive))
@@ -2305,4 +2310,5 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("git_email","Git Email",1,0,"list","git_emails")]
 
 OSI.gitGetEmail()
+getattention(root)
 root.mainloop()
