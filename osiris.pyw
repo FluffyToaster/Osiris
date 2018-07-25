@@ -68,6 +68,7 @@ tkwidth = 1920
 tkpadding = 10
 tklogheight = 40 # 25 under height 600
 tkbuttonwidth = 27
+tkdlprogresswidth = 1594 # bit arbitrary but should not change in a 1920 width window
 
 # tkinter A E S T H E T I C
 tkbgcolor = "#2e3338" #"#282C30"
@@ -145,7 +146,8 @@ def def_delta(event):
     mousey = event.y
 
 def move_window(event):
-    root.geometry("+"+str(event.x_root-mousex)+"+"+str(event.y_root-mousey))
+    if settings["set_draggable"] == "True":
+        root.geometry("+"+str(event.x_root-mousex)+"+"+str(event.y_root-mousey))
 
 # TOPLEVEL UTILITY DEFS
 def search(find,total): # quicksearch, as there is no option for recursive selection due to tkinter not wanting to wait for input
@@ -363,12 +365,12 @@ class mainUI:
             s.exitbutton = tk.Button(s.buttonframe,borderwidth=0,bg=tkbuttoncolor,activebackground="#c41313",fg=tktxtcol,activeforeground="white",font=boldfont,width=4,text=" X ",command=root.destroy)
             s.exitbutton.bind("<Enter>", lambda x: s.exitbutton.configure(bg="#c41313"))
             s.exitbutton.bind("<Leave>", lambda x: s.exitbutton.configure(bg=tkbuttoncolor))
-            s.exitbutton.pack(side=RIGHT)
+            s.exitbutton.pack(side=RIGHT, fill=Y)
             # minimize not possible because of overrideredirect
             s.minbutton = tk.Button(s.buttonframe,borderwidth=0,bg=tkbuttoncolor,activebackground=tkbgcolor3,fg=tktxtcol,activeforeground="white",font=boldfont,width=4,text=" _ ",command=s.attemptMinimise)
             s.minbutton.bind("<Enter>", lambda x: s.minbutton.configure(bg=tkbgcolor3))
             s.minbutton.bind("<Leave>", lambda x: s.minbutton.configure(bg=tkbuttoncolor))
-            s.minbutton.pack(side=RIGHT)
+            s.minbutton.pack(side=RIGHT, fill=Y)
         s.buttonframe.grid(column=0,columnspan=2,row=0,sticky=W+E)
 
         # the sandwich goes:
@@ -1453,7 +1455,17 @@ class mainUI:
 
 class dlManager:
     def __init__(s):
-        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=50)
+        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=30, width=tkdlprogresswidth)
+        s.mainframe.pack_propagate(0)
+        s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=tkbgcolor)
+        s.progress_bar_wrapper.pack_propagate(0)
+        s.progress_bar_done = tk.Frame(s.progress_bar_wrapper, bg="green", height=3, width=0, bd = 0)
+        s.progress_bar_busy = tk.Frame(s.progress_bar_wrapper, bg="#469bfc", height=3, width=0, bd = 0)
+        s.progress_bar_queued = tk.Frame(s.progress_bar_wrapper, bg="grey", height=3, width=0, bd = 0)
+        for i in [s.progress_bar_done, s.progress_bar_busy, s.progress_bar_queued]:
+            i.pack(side=LEFT)
+            i.pack_propagate(0)
+
         s.state = "waiting"
         s.idle = True
         s.count_gpcomplete = 0
@@ -1464,19 +1476,19 @@ class dlManager:
         s.gptracks = []
         s.yttracks = []
         s.staticlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=40)
-        s.staticlabel.pack(side=LEFT)
+        s.staticlabel.pack(side=LEFT,pady=(4,0))
         s.gplabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4,text="GP: ")
-        s.gplabel.pack(side=LEFT)
+        s.gplabel.pack(side=LEFT,pady=(4,0))
         s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
-        s.gpstatus.pack(side=LEFT)
+        s.gpstatus.pack(side=LEFT,pady=(4,0))
         s.ytlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=6,text="  YT: ")
-        s.ytlabel.pack(side=LEFT)
+        s.ytlabel.pack(side=LEFT,pady=(4,0))
         s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
-        s.ytstatus.pack(side=LEFT)
+        s.ytstatus.pack(side=LEFT,pady=(4,0))
         s.convlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=14,text="  Converting: ")
-        s.convlabel.pack(side=LEFT)
+        s.convlabel.pack(side=LEFT,pady=(4,0))
         s.convstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=10)
-        s.convstatus.pack(side=LEFT)
+        s.convstatus.pack(side=LEFT,pady=(4,0))
         s.refreshvalues()
         # mainframe not packed (this is done by login method)
 
@@ -1506,9 +1518,9 @@ class dlManager:
             s.count_ytcomplete = 0
             s.count_yttotal = 0
             s.state = "waiting"
-            root.after(500,lambda: OSI.mprefresh())
+            root.after(200,lambda: OSI.mprefresh())
         else:
-            root.after(250,s.process_downloads)
+            root.after(100,s.process_downloads)
         s.refreshvalues()
 
     def yt_download(s, track): # download from youtube data to filename
@@ -1614,6 +1626,18 @@ class dlManager:
             s.staticlabel.configure(text="Status: downloading from Google Play")
         if s.state == "downloading yt":
             s.staticlabel.configure(text="Status: downloading from YouTube")
+        dltotal = s.count_gptotal + s.count_yttotal
+        if dltotal > 0:
+            if not s.bars_packed:
+                s.progress_bar_wrapper.place(width=tkdlprogresswidth, height=3)
+                s.bars_packed = True
+
+            s.progress_bar_done.configure(width=tkdlprogresswidth*(max(0,(s.count_gpcomplete+s.count_ytcomplete-1))/dltotal))
+            s.progress_bar_busy.configure(width=tkdlprogresswidth/dltotal)
+            s.progress_bar_queued.configure(width=tkdlprogresswidth*(max(0,(dltotal-s.count_gpcomplete-s.count_ytcomplete))/dltotal))
+        else:
+            s.bars_packed = False
+            s.progress_bar_wrapper.place_forget()
         s.gpstatus.configure(text=str(s.count_gpcomplete)+"/"+str(s.count_gptotal))
         s.ytstatus.configure(text=str(s.count_ytcomplete)+"/"+str(s.count_yttotal))
         s.convstatus.configure(text=str(s.count_convtotal)+" tracks")
@@ -2277,6 +2301,7 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("set_pliduration","Show lengths of playlists in 'pli' menu",0,4,"bool"),
                 stWidget("set_update","Get updates from foobar",0,5,"bool"),
                 stWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
+                stWidget("set_draggable","Make window draggable with mouse",0,7,"bool"),
                 stWidget("git_email","Git Email",1,0,"list","git_emails")]
 
 OSI.gitGetEmail()
