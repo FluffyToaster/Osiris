@@ -55,44 +55,41 @@ importSettings()
 
 # LOCAL SETTINGS
 # tkinter settings
-fontset = ("Roboto Mono", "10")  # font name + size
-fontset2 = ("Roboto Mono", "11")
-smallfont = ("Roboto Mono", "8")
-italicfont = ("Roboto Mono", "10", "italic")
-boldfont = ("Roboto Mono", "11", "bold")
+FONT_S = ("Roboto Mono", "8")  # font name + size
+FONT_M = ("Roboto Mono", "10")
+FONT_L = ("Roboto Mono", "11")
+FONT_ITALIC = ("Roboto Mono", "10", "italic")
+FONT_BOLD = ("Roboto Mono", "11", "bold")
 if settings["large_taskbar"] == "False":
-    tkheight = 1042
+    TK_HEIGHT = 1042
 else:
-    tkheight = 1030
-tkwidth = 1920
-tkpadding = 10
-tklogheight = 40 # 25 under height 600
-tkbuttonwidth = 27
-tkdlprogresswidth = 1594 # bit arbitrary but should not change in a 1920 width window
+    TK_HEIGHT = 1030
+TK_WIDTH = 1920
+TK_PADDING = 10
+TK_LOG_HEIGHT = 40 # 25 under height 600
+TK_BUTTON_WIDTH = 25
+TK_PROGRESS_BAR_WIDTH = 1594 # bit arbitrary but should not change in a 1920 width window
 
 # tkinter A E S T H E T I C
-tkbgcolor = "#2e3338" #"#282C30"
-tkbgcolor2 = "#394046" # secondary music selection color
-tkbgcolor3 = "#454d54" # music selection button color
+COLOR_BG_1 = "#2e3338" #"#282C30"
+COLOR_BG_2 = "#394046" # secondary music selection color
+COLOR_BG_3 = "#454d54" # music selection button color
 
-tkbuttoncolor = "#14161A"
-tkbuttoncoloract = tkbgcolor
-tktxtcol = "#D3D7DE"
-tkentrytextcolor = tktxtcol
-tkbuttontextcolor = tktxtcol
-tkbuttontextcoloract = tktxtcol
+COLOR_BUTTON = "#14161A"
+COLOR_BUTTON_ACTIVE = COLOR_BG_1
+COLOR_TEXT = "#D3D7DE"
 
 # mp settings
 ALLOWED_FILETYPES = [".mp3"] # could also allows ".flac",".m4a",".wav" but would increase time to refresh
 
 # db settings
-dbdir = "database/"
-enclevel = 3 # depth of Aegis AES-256 ecryption
+DB_DIR = "database/"
+DB_ENC_LEVEL = 3 # depth of Aegis AES-256 ecryption
 
 # dl settings
-DL_ALTERNATIVES = 5
-crop_tresh = 50 # used when cropping YT thumbnails
-ydl_opts = {
+DL_ALTERNATIVES = 5 # number of alternatives to display when searching
+DL_CROP_THRESH = 50 # used when cropping YT thumbnails
+DL_YT_OPTIONS = {
     'format': 'bestaudio/best',
     'postprocessors': [{
     'key': 'FFmpegExtractAudio',
@@ -102,12 +99,12 @@ ydl_opts = {
 }
 
 # setup
-if not os.path.exists(dbdir):
-    os.mkdir(dbdir)
+if not os.path.exists(DB_DIR):
+    os.mkdir(DB_DIR)
 musicWidgets = []
 musicPaths = []
 allfiles = []
-dbloc = dbdir
+dbloc = DB_DIR
 dbstate = ["browse",[],[],[]] # mode, showlist, pathlist, maplist
 dbkey = False
 dbWidgets = []
@@ -150,7 +147,7 @@ def move_window(event):
         root.geometry("+"+str(event.x_root-mousex)+"+"+str(event.y_root-mousey))
 
 # TOPLEVEL UTILITY DEFS
-def search(find,total): # quicksearch, as there is no option for recursive selection due to tkinter not wanting to wait for input
+def search(find,total):
     find = find.split(";") # ["foo bar", "tra la"]
     results = []
     for term in find: # term = "foo bar", "tra la"
@@ -171,23 +168,23 @@ def search(find,total): # quicksearch, as there is no option for recursive selec
                     results.append(full)
     return results
 
-def matchcrit(crit, searchlist, shift = 0): # interprets search criteria
+def matchcrit(crit, searchlist): # interprets search criteria
     match = [] #list of all files that match criteria given
     for i in crit.split(";"):
         if len(i.split("-"))==2:
-            if isint(i.split("-")[0]) and isint(i.split("-")[1]):
+            if is_int(i.split("-")[0]) and is_int(i.split("-")[1]):
                 # criterium is range of files
-                match += searchlist[int(i.split("-")[0])-shift-1:int(i.split("-")[1])-shift]
-        if isint(i):
+                match += searchlist[int(i.split("-")[0])-1:int(i.split("-")[1])]
+        if is_int(i):
             # criterium is single file
-            if int(i)-shift <= len(searchlist):
-                match += [searchlist[int(i)-shift-1]]
+            if int(i) <= len(searchlist):
+                match += [searchlist[int(i)-1]]
         else:
             # criterium is string to search
             match += search(i,searchlist)
     return match
 
-def isint(val): # checks whether a value can be converted to an integer
+def is_int(val): # checks whether a value can be converted to an integer
     try:
         int(val)
         return True
@@ -210,16 +207,14 @@ def escape(string): # escape backslashes
                           [r"\\0",r"\\n",r"\\l",r"\\t"][i])
     return val.strip("'")
 
-def fltr(orig_string, hard=True):
+def _filter(orig_string, make_safe_for_filename = True): # handle unsafe strings
     temp = orig_string[:]
-    changelist = '*/\\":?<>|'
-    for i in range(3):
+    if make_safe_for_filename:
+        changelist = '*/\\":?<>|'
         for char in changelist:
-            temp = temp.replace(char,"_")
-    if hard:
-        return bytes(temp, 'utf-8').decode('utf-8','replace')
-        #return ''.join(filter(lambda x: x in string.printable, temp))
-    return temp
+            temp = "_".join(temp.split(char))
+
+    return bytes(temp, 'utf-8').decode('utf-8','replace')
 
 def colorFromImage(image, avoid_dark = False):
     colors = image.getcolors(image.size[0]*image.size[1])
@@ -329,32 +324,32 @@ class mainUI:
         s.master = master
         master.title("Osiris")
         master.resizable(0,0)
-        s.rootframe = tk.Frame(s.master,background=tkbuttoncolor)
+        s.rootframe = tk.Frame(s.master,background=COLOR_BUTTON)
 
-        s.mainframe = tk.Frame(s.rootframe,bg=tkbuttoncolor)
+        s.mainframe = tk.Frame(s.rootframe,bg=COLOR_BUTTON)
 
         # time for the bulk of the widgets
-        s.buttonframe = tk.Frame(s.mainframe,bg=tkbuttoncolor,height=38)
+        s.buttonframe = tk.Frame(s.mainframe,bg=COLOR_BUTTON,height=38)
         s.buttonframe.pack_propagate(0)
 
 
 
         # adding logo
-        s.logoframe = tk.Frame(s.buttonframe, height=38, width=80,bg=tkbuttoncolor)
+        s.logoframe = tk.Frame(s.buttonframe, height=38, width=80,bg=COLOR_BUTTON)
         s.logoframe.pack_propagate(0)
         s.logoimage = Image.open("etc/background-white-logo.png")
         s.logoimage = s.logoimage.resize((57,30),Image.ANTIALIAS)
         s.logophoto = ImageTk.PhotoImage(s.logoimage)
-        s.logolabel = tk.Label(s.logoframe, height=33, width=66, image=s.logophoto,bg=tkbuttoncolor)
+        s.logolabel = tk.Label(s.logoframe, height=33, width=66, image=s.logophoto,bg=COLOR_BUTTON)
         s.logolabel.image = s.logophoto
         s.logolabel.pack(padx=10,pady=4)
         s.logoframe.pack(side=LEFT)
 
-        s.mpbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="MUSIC",command=lambda:s.select("mp"))
-        s.dbbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="DATABASE",command=lambda:s.select("db"))
-        s.dlbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="DOWNLOAD",command=lambda:s.select("dl"))
-        s.wkbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="WORK",command=lambda:s.select("wk"))
-        s.stbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=tkbuttoncoloract,activeforeground=tktxtcol,font=fontset2,width=tkbuttonwidth,text="SETTINGS",command=lambda:s.select("st"))
+        s.mpbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="MUSIC",command=lambda:s.select("mp"))
+        s.dbbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="DATABASE",command=lambda:s.select("db"))
+        s.dlbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="DOWNLOAD",command=lambda:s.select("dl"))
+        s.wkbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="WORK",command=lambda:s.select("wk"))
+        s.stbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="SETTINGS",command=lambda:s.select("st"))
         # list of buttons
         s.buttonw = [s.mpbutton,s.dbbutton,s.dlbutton,s.wkbutton,s.stbutton]
 
@@ -362,14 +357,14 @@ class mainUI:
             i.pack(side=LEFT, fill=Y)
 
         if settings["set_notitle"]=="True":
-            s.exitbutton = tk.Button(s.buttonframe,borderwidth=0,bg=tkbuttoncolor,activebackground="#c41313",fg=tktxtcol,activeforeground="white",font=boldfont,width=4,text=" X ",command=root.destroy)
+            s.exitbutton = tk.Button(s.buttonframe,borderwidth=0,bg=COLOR_BUTTON,activebackground="#c41313",fg=COLOR_TEXT,activeforeground="white",font=FONT_BOLD,width=4,text=" X ",command=root.destroy)
             s.exitbutton.bind("<Enter>", lambda x: s.exitbutton.configure(bg="#c41313"))
-            s.exitbutton.bind("<Leave>", lambda x: s.exitbutton.configure(bg=tkbuttoncolor))
+            s.exitbutton.bind("<Leave>", lambda x: s.exitbutton.configure(bg=COLOR_BUTTON))
             s.exitbutton.pack(side=RIGHT, fill=Y)
             # minimize not possible because of overrideredirect
-            s.minbutton = tk.Button(s.buttonframe,borderwidth=0,bg=tkbuttoncolor,activebackground=tkbgcolor3,fg=tktxtcol,activeforeground="white",font=boldfont,width=4,text=" _ ",command=s.attemptMinimise)
-            s.minbutton.bind("<Enter>", lambda x: s.minbutton.configure(bg=tkbgcolor3))
-            s.minbutton.bind("<Leave>", lambda x: s.minbutton.configure(bg=tkbuttoncolor))
+            s.minbutton = tk.Button(s.buttonframe,borderwidth=0,bg=COLOR_BUTTON,activebackground=COLOR_BG_3,fg=COLOR_TEXT,activeforeground="white",font=FONT_BOLD,width=4,text=" _ ",command=s.attemptMinimise)
+            s.minbutton.bind("<Enter>", lambda x: s.minbutton.configure(bg=COLOR_BG_3))
+            s.minbutton.bind("<Leave>", lambda x: s.minbutton.configure(bg=COLOR_BUTTON))
             s.minbutton.pack(side=RIGHT, fill=Y)
         s.buttonframe.grid(column=0,columnspan=2,row=0,sticky=W+E)
 
@@ -378,8 +373,8 @@ class mainUI:
         #   scrollcanvas
         #    contentframe
         #     ALL FRAME WIDGETS (mp, db, dl)
-        s.contentwrapperframe = tk.Frame(s.mainframe,bg=tkbgcolor,height=tkheight-64,width=tkwidth-306)
-        s.scrollcanvas = tk.Canvas(s.contentwrapperframe,bg=tkbgcolor,yscrollincrement="1")
+        s.contentwrapperframe = tk.Frame(s.mainframe,bg=COLOR_BG_1,height=TK_HEIGHT-64,width=TK_WIDTH-306)
+        s.scrollcanvas = tk.Canvas(s.contentwrapperframe,bg=COLOR_BG_1,yscrollincrement="1")
         s.scrollcanvas.pack(side=LEFT,fill=BOTH,expand=True)
 
         if settings["set_showscrollbar"]=="True":
@@ -387,7 +382,7 @@ class mainUI:
             s.scrollbar.pack(side=RIGHT, fill=Y)
             s.scrollcanvas.config(yscrollcommand=s.scrollbar.set)
 
-        s.contentframe = tk.Frame(s.scrollcanvas,bg=tkbgcolor)
+        s.contentframe = tk.Frame(s.scrollcanvas,bg=COLOR_BG_1)
 
         # s.contentframe.pack_propagate(0)
         if settings["set_scrollable"]=="False":
@@ -399,98 +394,98 @@ class mainUI:
 
         s.logoimage = Image.open("etc/osi.png")
 
-        s.mpframe = tk.Frame(s.contentframe,bg=tkbgcolor)
+        s.mpframe = tk.Frame(s.contentframe,bg=COLOR_BG_1)
 
         if settings["set_foobarplaying"]=="True":
-            s.mpfoobarwrapper = tk.Frame(s.mpframe,bg=tkbuttoncolor)
+            s.mpfoobarwrapper = tk.Frame(s.mpframe,bg=COLOR_BUTTON)
             s.mpfoobarwrapper.place(y=450,height=100,width=400)
-            s.mpfoobarframe = tk.Frame(s.mpfoobarwrapper,bg=tkbgcolor)
-            s.mpfoobaralbart = tk.Label(s.mpfoobarframe,bg=tkbgcolor)
+            s.mpfoobarframe = tk.Frame(s.mpfoobarwrapper,bg=COLOR_BG_1)
+            s.mpfoobaralbart = tk.Label(s.mpfoobarframe,bg=COLOR_BG_1)
             s.mpfoobaralbart.place(height=100,width=100)
-            s.mpfoobartext = tk.Label(s.mpfoobarframe,text="",fg=tktxtcol,bg=tkbgcolor)
+            s.mpfoobartext = tk.Label(s.mpfoobarframe,text="",fg=COLOR_TEXT,bg=COLOR_BG_1)
             s.mpfoobartext.place(x=105)
-            s.mpfoobarplaypause = tk.Label(s.mpfoobarframe,text="",fg=tktxtcol,bg=tkbgcolor)
+            s.mpfoobarplaypause = tk.Label(s.mpfoobarframe,text="",fg=COLOR_TEXT,bg=COLOR_BG_1)
             s.mpfoobarplaypause.place(x=340,y=70)
             s.mpfoobarframe.pack(side=TOP,pady=2,padx=2,fill=BOTH,expand=True)
 
-        s.glbentry = tk.Entry(s.mainframe,font=fontset2,bg=tkbuttoncolor,fg=tkentrytextcolor,borderwidth=0,insertbackground=tkentrytextcolor)
+        s.glbentry = tk.Entry(s.mainframe,font=FONT_L,bg=COLOR_BUTTON,fg=COLOR_TEXT,borderwidth=0,insertbackground=COLOR_TEXT)
         s.glbentry.bind("<Return>",lambda x:s.visentry(s.glbentry.get()))
         s.glbentry.bind("<Up>",lambda x:s.entrymove("up"))
         s.glbentry.bind("<Down>",lambda x:s.entrymove("down"))
         s.glbentry.grid(column= 0 , row = 2, sticky=W+E)
         s.glbentry.focus()
 
-        s.dbframe = tk.Frame(s.contentframe,background=tkbgcolor)
+        s.dbframe = tk.Frame(s.contentframe,background=COLOR_BG_1)
         s.dbinfoframe = tk.Frame(s.dbframe)
-        s.dbloclabel = tk.Label(s.dbinfoframe,bg=tkbgcolor, fg=tktxtcol, font=fontset, text="Browsing: "+dbloc)
+        s.dbloclabel = tk.Label(s.dbinfoframe,bg=COLOR_BG_1, fg=COLOR_TEXT, font=FONT_M, text="Browsing: "+dbloc)
         s.dbloclabel.pack(side=LEFT)
         s.dbinfoframe.pack(side=TOP)
-        s.dbeditorframe = tk.Frame(s.dbframe,bg=tkbuttoncolor,highlightthickness=2,highlightbackground=tkbgcolor3,highlightcolor=tkbgcolor3,relief="flat")
-        s.dbtitlewrapper = tk.Frame(s.dbeditorframe, bg=tkbgcolor3)
-        s.dbtitle = tk.Text(s.dbtitlewrapper,height=1,bd=0,font=(fontset[0],14),bg=tkbuttoncolor,insertbackground=tktxtcol,fg=tktxtcol)
+        s.dbeditorframe = tk.Frame(s.dbframe,bg=COLOR_BUTTON,highlightthickness=2,highlightbackground=COLOR_BG_3,highlightcolor=COLOR_BG_3,relief="flat")
+        s.dbtitlewrapper = tk.Frame(s.dbeditorframe, bg=COLOR_BG_3)
+        s.dbtitle = tk.Text(s.dbtitlewrapper,height=1,bd=0,font=(FONT_M[0],14),bg=COLOR_BUTTON,insertbackground=COLOR_TEXT,fg=COLOR_TEXT)
         s.dbtitle.pack(fill=X,pady=(0,2),padx=10)
         s.dbtitlewrapper.pack(fill=X)
-        s.dbeditor = tk.Text(s.dbeditorframe,height=tklogheight,font=fontset,bg=tkbuttoncolor,bd=0,insertbackground=tktxtcol,fg=tktxtcol,wrap="word")
+        s.dbeditor = tk.Text(s.dbeditorframe,height=TK_LOG_HEIGHT,font=FONT_M,bg=COLOR_BUTTON,bd=0,insertbackground=COLOR_TEXT,fg=COLOR_TEXT,wrap="word")
         s.dbeditor.pack(padx=10,pady=5, fill=BOTH)
 
-        # s.dbloadreq = tk.Label(s.dbframe,bg=tkbuttoncolor,fg=tktxtcol,font=(fontset[0],"25"),text="ENTER TO LOAD DATABASE")
+        # s.dbloadreq = tk.Label(s.dbframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=(FONT_M[0],"25"),text="ENTER TO LOAD DATABASE")
         # s.dbloadreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
 
-        s.dlframe = tk.Frame(s.contentframe,background=tkbgcolor)
-        s.dlloginreq = tk.Label(s.dlframe,bg=tkbuttoncolor,fg=tktxtcol,font=(fontset[0],"25"),text="LOGGING IN, PLEASE WAIT")
+        s.dlframe = tk.Frame(s.contentframe,background=COLOR_BG_1)
+        s.dlloginreq = tk.Label(s.dlframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=(FONT_M[0],"25"),text="LOGGING IN, PLEASE WAIT")
         s.dlloginreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
 
-        s.wkframe = tk.Frame(s.contentframe,background=tkbuttoncolor)
+        s.wkframe = tk.Frame(s.contentframe,background=COLOR_BUTTON)
         s.wkframe.grid_propagate(0)
-        for i in range(2): s.wkframe.grid_columnconfigure(i,minsize=int(tkwidth/2)-tkpadding)
-        s.wkframe.grid_rowconfigure(0,minsize=int(tkheight/2))
-        s.wktodos = tk.Frame(s.wkframe,bg=tkbuttoncolor,width=tkwidth-2*tkpadding)
+        for i in range(2): s.wkframe.grid_columnconfigure(i,minsize=int(TK_WIDTH/2)-TK_PADDING)
+        s.wkframe.grid_rowconfigure(0,minsize=int(TK_HEIGHT/2))
+        s.wktodos = tk.Frame(s.wkframe,bg=COLOR_BUTTON,width=TK_WIDTH-2*TK_PADDING)
         s.wktodos.grid(column=0,row=0,columnspan=2,sticky="NESW",padx=2)
-        s.wktodos.grid_rowconfigure(1,minsize=int(tkheight/2)-28)
-        for i in range(3): s.wktodos.grid_columnconfigure(i,minsize=int((tkwidth-2*tkpadding)/3)-1)
-        s.wktodolbl1 = tk.Label(s.wktodos,font=fontset,text="TODO",fg=tktxtcol,bg=tkbuttoncolor)
+        s.wktodos.grid_rowconfigure(1,minsize=int(TK_HEIGHT/2)-28)
+        for i in range(3): s.wktodos.grid_columnconfigure(i,minsize=int((TK_WIDTH-2*TK_PADDING)/3)-1)
+        s.wktodolbl1 = tk.Label(s.wktodos,font=FONT_M,text="TODO",fg=COLOR_TEXT,bg=COLOR_BUTTON)
         s.wktodolbl1.grid(column=0,row=0,sticky="NESW",padx=(0,1))
-        s.wktodolbl2 = tk.Label(s.wktodos,font=fontset,text="IN PROGRESS",fg=tktxtcol,bg=tkbuttoncolor)
+        s.wktodolbl2 = tk.Label(s.wktodos,font=FONT_M,text="IN PROGRESS",fg=COLOR_TEXT,bg=COLOR_BUTTON)
         s.wktodolbl2.grid(column=1,row=0,sticky="NESW",padx=1)
-        s.wktodolbl3 = tk.Label(s.wktodos,font=fontset,text="DONE",fg=tktxtcol,bg=tkbuttoncolor)
+        s.wktodolbl3 = tk.Label(s.wktodos,font=FONT_M,text="DONE",fg=COLOR_TEXT,bg=COLOR_BUTTON)
         s.wktodolbl3.grid(column=2,row=0,sticky="NESW",padx=(0,1))
-        s.wktodolist1 = tk.Frame(s.wktodos,bg=tkbgcolor)
+        s.wktodolist1 = tk.Frame(s.wktodos,bg=COLOR_BG_1)
         s.wktodolist1.grid(column=0,row=1,sticky="NESW")
-        s.wktodolist2 = tk.Frame(s.wktodos,bg=tkbgcolor)
+        s.wktodolist2 = tk.Frame(s.wktodos,bg=COLOR_BG_1)
         s.wktodolist2.grid(column=1,row=1,padx=2,sticky="NESW")
-        s.wktodolist3 = tk.Frame(s.wktodos,bg=tkbgcolor)
+        s.wktodolist3 = tk.Frame(s.wktodos,bg=COLOR_BG_1)
         s.wktodolist3.grid(column=2,row=1,sticky="NESW")
-        s.wkadd1 = tk.Button(s.wktodolist1,text="+",width=2,font=smallfont,bg=tkbuttoncolor,fg=tktxtcol,command=lambda: wkWidgets.append(wkLine("test1",0)))
-        s.wkadd2 = tk.Button(s.wktodolist2,text="+",width=2,font=smallfont,bg=tkbuttoncolor,fg=tktxtcol,command=lambda: wkWidgets.append(wkLine("test2",1)))
-        s.wkadd3 = tk.Button(s.wktodolist3,text="+",width=2,font=smallfont,bg=tkbuttoncolor,fg=tktxtcol,command=lambda: wkWidgets.append(wkLine("test3",2)))
+        s.wkadd1 = tk.Button(s.wktodolist1,text="+",width=2,font=FONT_S,bg=COLOR_BUTTON,fg=COLOR_TEXT,command=lambda: wkWidgets.append(wkLine("test1",0)))
+        s.wkadd2 = tk.Button(s.wktodolist2,text="+",width=2,font=FONT_S,bg=COLOR_BUTTON,fg=COLOR_TEXT,command=lambda: wkWidgets.append(wkLine("test2",1)))
+        s.wkadd3 = tk.Button(s.wktodolist3,text="+",width=2,font=FONT_S,bg=COLOR_BUTTON,fg=COLOR_TEXT,command=lambda: wkWidgets.append(wkLine("test3",2)))
         for i in [s.wkadd1,s.wkadd2,s.wkadd3]:
             i.pack(side=BOTTOM)
         s.wkassoctextframe = tk.Frame(s.wkframe)
         s.wkassoctextframe.grid(column=0,row=1)
-        s.wkassoctext = tk.Text(s.wkassoctextframe,font=fontset,width=60,bg=tkbgcolor2,bd=0,insertbackground=tktxtcol,fg=tktxtcol,wrap="word")
+        s.wkassoctext = tk.Text(s.wkassoctextframe,font=FONT_M,width=60,bg=COLOR_BG_2,bd=0,insertbackground=COLOR_TEXT,fg=COLOR_TEXT,wrap="word")
         s.wkassoctext.pack()
         s.wkgentextframe = tk.Frame(s.wkframe)
         s.wkgentextframe.grid(column=1,row=1)
-        s.wkgentext = tk.Text(s.wkgentextframe,font=fontset,width=60,bg=tkbgcolor2,bd=0,insertbackground=tktxtcol,fg=tktxtcol,wrap="word")
+        s.wkgentext = tk.Text(s.wkgentextframe,font=FONT_M,width=60,bg=COLOR_BG_2,bd=0,insertbackground=COLOR_TEXT,fg=COLOR_TEXT,wrap="word")
         s.wkgentext.pack()
 
-        s.stframe = tk.Frame(s.contentframe,background=tkbgcolor)
+        s.stframe = tk.Frame(s.contentframe,background=COLOR_BG_1)
         # key,label,col,row,type
 
 
 
 
         # one final thing: the log
-        s.logframe = tk.Frame(s.mainframe,width=300,bg=tkbgcolor)
-        s.loglabel = tk.Label(s.logframe,text="",font=fontset2,height=tklogheight,bg=tkbgcolor,fg=tktxtcol,anchor=W,justify=LEFT) #"SystemButtonFace",text="BAAAAH")
+        s.logframe = tk.Frame(s.mainframe,width=300,bg=COLOR_BG_1)
+        s.loglabel = tk.Label(s.logframe,text="",font=FONT_L,height=TK_LOG_HEIGHT,bg=COLOR_BG_1,fg=COLOR_TEXT,anchor=W,justify=LEFT) #"SystemButtonFace",text="BAAAAH")
         s.loglabel.pack(pady=(0,2),fill=X,side=BOTTOM)
 
         s.logframe.grid(column=1,row=1,sticky="NESW",padx=(6,0),pady=0)
         s.logframe.pack_propagate(0)
 
-        s.responsiveframe = tk.Frame(s.mainframe,height=26,width=300,bg=tkbuttoncolor)
+        s.responsiveframe = tk.Frame(s.mainframe,height=26,width=300,bg=COLOR_BUTTON)
         s.responsiveframe.pack_propagate(0)
-        s.responsivelabel = tk.Label(s.responsiveframe,text="",height=1,font=fontset2,bg=tkbuttoncolor,fg="white")
+        s.responsivelabel = tk.Label(s.responsiveframe,text="",height=1,font=FONT_L,bg=COLOR_BUTTON,fg="white")
         s.responsivelabel.pack(side=LEFT)
         s.responsiveframe.grid(column=1,row=2,sticky=E)
         # main window definitions complete, now doing pre-op on the widgets
@@ -514,7 +509,7 @@ class mainUI:
         # for i in s.frames:
         #     s.backgroundimage = Image.open("etc/background.png")
         #     s.backgroundphoto = ImageTk.PhotoImage(s.backgroundimage)
-        #     s.background = tk.Label(i, image=s.backgroundphoto, bg=tkbgcolor)
+        #     s.background = tk.Label(i, image=s.backgroundphoto, bg=COLOR_BG_1)
         #     s.background.place(x=-250,y=-250,relx=0.5,rely=0.5)
 
 # GENERAL DEFS
@@ -557,7 +552,7 @@ class mainUI:
 
     def log(s,tolog):
         oldlog = s.loglabel.cget('text')
-        newlog = (int(tklogheight)*[""]+oldlog.split("\n")+[str(tolog)])[-1*int(tklogheight):]
+        newlog = (TK_LOG_HEIGHT*[""]+oldlog.split("\n")+[str(tolog)])[-1*TK_LOG_HEIGHT:]
         s.loglabel.config(text="\n".join(newlog))
 
     def greet(s):
@@ -578,13 +573,13 @@ class mainUI:
 
     def select(s,choice):
         for i in s.frames: i.pack_forget()
-        for i in s.buttonw: i.configure(relief=RAISED,bg=tkbuttoncolor,fg=tktxtcol)
+        for i in s.buttonw: i.configure(relief=RAISED,bg=COLOR_BUTTON,fg=COLOR_TEXT)
 
         # selecting the mode to switch to and applying appropriate widget changes
         s.modeindex = s.modes.index(choice)
 
-        s.buttonw[s.modeindex].configure(relief=SUNKEN,bg=tkbuttoncoloract,fg=tktxtcol)
-        s.frames[s.modeindex].pack(fill=BOTH,expand=True,pady=tkpadding,padx=tkpadding)
+        s.buttonw[s.modeindex].configure(relief=SUNKEN,bg=COLOR_BUTTON_ACTIVE,fg=COLOR_TEXT)
+        s.frames[s.modeindex].pack(fill=BOTH,expand=True,pady=TK_PADDING,padx=TK_PADDING)
         s.mode = choice
 
     def responsive(s):
@@ -620,7 +615,7 @@ class mainUI:
                 if flag == "bin":
                     msg = "Send " + str(len(matchcrit(comm,musicPaths))) + " song(s) to trash"
                 if flag == "gp":
-                    if isint(comm):
+                    if is_int(comm):
                         msg = "Select " + comm + " recent song(s)"
                     else:
                         if comm.rstrip(" ") != "":
@@ -802,18 +797,18 @@ class mainUI:
 
     def mpplgen(s): # generate the playlist info widget
         # define surrounding layout (regardless of playlists)
-        s.pliwrapper = tk.Frame(s.mpframe,bg=tkbuttoncolor)
+        s.pliwrapper = tk.Frame(s.mpframe,bg=COLOR_BUTTON)
         s.pliwrapper.pack_propagate(0)
-        s.pliframe = tk.Frame(s.pliwrapper,bg=tkbgcolor2)
-        s.plikeyframe = tk.Frame(s.pliframe,width=260,height=22,bg=tkbgcolor2)
+        s.pliframe = tk.Frame(s.pliwrapper,bg=COLOR_BG_2)
+        s.plikeyframe = tk.Frame(s.pliframe,width=260,height=22,bg=COLOR_BG_2)
         s.plikeyframe.pack_propagate(0)
         s.plikeyframe.pack(side=TOP,fill=X,pady=(0,1))
         s.plitextstring = "Name       #S  #A"
         if settings["set_pliduration"]=="True":
             s.plitextstring += "  Length"
-        s.plikey = tk.Label(s.plikeyframe,font=fontset,text=s.plitextstring,bg=tkbgcolor2,fg=tktxtcol)
+        s.plikey = tk.Label(s.plikeyframe,font=FONT_M,text=s.plitextstring,bg=COLOR_BG_2,fg=COLOR_TEXT)
         s.plikey.pack(side=LEFT,anchor=W)
-        s.plikeydel = tk.Button(s.plikeyframe,fg=tktxtcol,font=fontset,borderwidth=0,text="X",command=lambda:s.mpinterpret("plic"),bg=tkbuttoncolor)
+        s.plikeydel = tk.Button(s.plikeyframe,fg=COLOR_TEXT,font=FONT_M,borderwidth=0,text="X",command=lambda:s.mpinterpret("plic"),bg=COLOR_BUTTON)
         s.plikeydel.pack(side=RIGHT)
         # get all playlists + info
         s.plipllist = []  #'playlistinfoplaylistlist' i am excellent at naming things
@@ -828,7 +823,7 @@ class mainUI:
         for i in s.plipllist:
             pliLine(i)
         s.pliframe.pack(side=TOP,fill=Y,expand=True)
-        s.pliwrapper.place(x=630,width=266,height=tkheight)
+        s.pliwrapper.place(x=630,width=266,height=TK_HEIGHT)
 
 #################################### DATABASE DEFS #####################################################################
     def dbinterpret(s,entry):
@@ -932,7 +927,7 @@ class mainUI:
                 dbloc = "/".join(dbloc.split("/")[0:max(-1*(len(dbloc.split("/"))-1), -comm)])+"/"
 
             elif flag == "root": # reset to root
-                dbloc = dbdir
+                dbloc = DB_DIR
 
 
             else: # open aegis/text/folder
@@ -1023,13 +1018,13 @@ class mainUI:
 
     def aegenc(s,keys,data):
         data = str.encode(data)
-        for i in range(enclevel): data = s.aegenc_single(s.aegkeyparse(keys,True),data)
-        for i in range(enclevel): data = s.aegenc_single(s.aegkeyparse(keys,False),data)
+        for i in range(DB_ENC_LEVEL): data = s.aegenc_single(s.aegkeyparse(keys,True),data)
+        for i in range(DB_ENC_LEVEL): data = s.aegenc_single(s.aegkeyparse(keys,False),data)
         return data
 
     def aegdec(s,keys,data):
-        for i in range(enclevel): data = s.aegdec_single(s.aegkeyparse(keys,False),data)
-        for i in range(enclevel): data = s.aegdec_single(s.aegkeyparse(keys,True),data)
+        for i in range(DB_ENC_LEVEL): data = s.aegdec_single(s.aegkeyparse(keys,False),data)
+        for i in range(DB_ENC_LEVEL): data = s.aegdec_single(s.aegkeyparse(keys,True),data)
         data = data.decode()
         return data
 
@@ -1126,7 +1121,7 @@ class mainUI:
 #################################### DOWNLOAD DEFS #####################################################################
     def dlinterpret(s,entry):
         s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
-        if entry.startswith("d ") and isint(entry.split()[1]): # if entry is delete command
+        if entry.startswith("d ") and is_int(entry.split()[1]): # if entry is delete command
             # del
             pass
         elif entry == "dl":
@@ -1187,10 +1182,10 @@ class mainUI:
                 search_result = api.get_shared_playlist_contents(id)
                 web_result = webapi.get_shared_playlist_info(id)
                 pl_info = [
-                            fltr(web_result["title"]),
-                            fltr(web_result["author"]),
+                            _filter(web_result["title"]),
+                            _filter(web_result["author"]),
                             str(web_result["num_tracks"]),
-                            fltr(web_result["description"]),
+                            _filter(web_result["description"]),
                           ]
                 dlWidgets.append(gpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
 
@@ -1266,7 +1261,7 @@ class mainUI:
             blacks = 0
             for col in range(imgwidth):
                 (r,g,b) = image.getpixel((col,row))
-                if r+g+b < crop_tresh:
+                if r+g+b < DL_CROP_THRESH:
                     blacks += 1
             if imgwidth - blacks > 10: # if row is not primarily black, halt search here
                 break
@@ -1276,7 +1271,7 @@ class mainUI:
             blacks = 0
             for col in range(imgwidth):
                 (r,g,b) = image.getpixel((col,row))
-                if r+g+b < crop_tresh:
+                if r+g+b < DL_CROP_THRESH:
                     blacks += 1
             if imgwidth - blacks > 10: # if row is not primarily black, halt search here
                 break
@@ -1286,7 +1281,7 @@ class mainUI:
             blacks = 0
             for row in range(imgheight):
                 (r,g,b) = image.getpixel((col,row))
-                if r+g+b < crop_tresh:
+                if r+g+b < DL_CROP_THRESH:
                     blacks += 1
             if imgheight - blacks > 10: # if row is not primarily black, halt search here
                 break
@@ -1296,7 +1291,7 @@ class mainUI:
             blacks = 0
             for row in range(imgheight):
                 (r,g,b) = image.getpixel((col,row))
-                if r+g+b < crop_tresh:
+                if r+g+b < DL_CROP_THRESH:
                     blacks += 1
             if imgheight - blacks > 10: # if row is not primarily black, halt search here
                 break
@@ -1311,30 +1306,30 @@ class mainUI:
             try: vid_id = track["id"]["videoId"]
             except: vid_id = track["id"]
 
-        return [fltr(str(track["snippet"]["title"])),
-                fltr(str(track["snippet"]["channelTitle"])),
+        return [_filter(str(track["snippet"]["title"])),
+                _filter(str(track["snippet"]["channelTitle"])),
                 str(track["snippet"]["thumbnails"]["high"]["url"]),
                 str(vid_id)]
 
     def gp_get_track_data(s, track):
-        return [fltr(str(track.get("title"))),
-                fltr(str(track.get("artist"))),
-                fltr(str(track.get("album"))),
+        return [_filter(str(track.get("title"))),
+                _filter(str(track.get("artist"))),
+                _filter(str(track.get("album"))),
                 str(track.get("albumArtRef")[0].get("url")),
-                fltr(str(track.get("trackNumber"))),
-                fltr(str(track.get("storeId"))),
-                fltr(str(track.get("composer"))),
-                fltr(str(track.get("year"))),
-                fltr(str(track.get("beatsPerMinute"))),
-                fltr(str(track.get("genre")))]
+                _filter(str(track.get("trackNumber"))),
+                _filter(str(track.get("storeId"))),
+                _filter(str(track.get("composer"))),
+                _filter(str(track.get("year"))),
+                _filter(str(track.get("beatsPerMinute"))),
+                _filter(str(track.get("genre")))]
 
     def gp_get_album_data(s, album):
-        return [fltr(str(album.get("name"))),
-                fltr(str(album.get("artist"))),
-                fltr(str(album.get("year"))),
+        return [_filter(str(album.get("name"))),
+                _filter(str(album.get("artist"))),
+                _filter(str(album.get("year"))),
                 str(album.get("albumArtRef")),
-                fltr(str(album.get("albumId"))),
-                fltr(str(album.get("explicitType")))]
+                _filter(str(album.get("albumId"))),
+                _filter(str(album.get("explicitType")))]
 
     def gpsearch_track(s,query):
         # perform search of gp database
@@ -1455,10 +1450,10 @@ class mainUI:
 
 class dlManager:
     def __init__(s):
-        s.mainframe = tk.Frame(OSI.dlframe,bg=tkbuttoncolor,height=30, width=tkdlprogresswidth)
+        s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=30, width=TK_PROGRESS_BAR_WIDTH)
         s.mainframe.pack_propagate(0)
-        s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=tkbgcolor)
-        s.progress_bar_wrapper.place(width=tkdlprogresswidth, height=3)
+        s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=COLOR_BG_1)
+        s.progress_bar_wrapper.place(width=TK_PROGRESS_BAR_WIDTH, height=3)
         s.progress_bar_wrapper.pack_propagate(0)
         s.progress_bar_done = tk.Frame(s.progress_bar_wrapper, bg="green", height=3, width=0, bd = 0)
         s.progress_bar_busy = tk.Frame(s.progress_bar_wrapper, bg="#469bfc", height=3, width=0, bd = 0)
@@ -1475,19 +1470,19 @@ class dlManager:
         s.count_convtotal = 0
         s.gptracks = []
         s.yttracks = []
-        s.staticlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=40)
+        s.staticlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=40)
         s.staticlabel.pack(side=LEFT,pady=(1,0))
-        s.gplabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=4,text="GP: ")
+        s.gplabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=4,text="GP: ")
         s.gplabel.pack(side=LEFT,pady=(1,0))
-        s.gpstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
+        s.gpstatus = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=7)
         s.gpstatus.pack(side=LEFT,pady=(1,0))
-        s.ytlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=6,text="  YT: ")
+        s.ytlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=6,text="  YT: ")
         s.ytlabel.pack(side=LEFT,pady=(1,0))
-        s.ytstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=7)
+        s.ytstatus = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=7)
         s.ytstatus.pack(side=LEFT,pady=(1,0))
-        s.convlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=14,text="  Converting: ")
+        s.convlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=14,text="  Converting: ")
         s.convlabel.pack(side=LEFT,pady=(1,0))
-        s.convstatus = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=10)
+        s.convstatus = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=10)
         s.convstatus.pack(side=LEFT,pady=(1,0))
         s.refreshvalues()
         # mainframe not packed (this is done by login method)
@@ -1506,12 +1501,12 @@ class dlManager:
                     i.pack(side=LEFT)
                 s.bars_packed = True
             if s.state == "waiting":
-                s.progress_bar_done.configure(width=tkdlprogresswidth*(max(0,(s.count_gpcomplete+s.count_ytcomplete))/dltotal))
+                s.progress_bar_done.configure(width=TK_PROGRESS_BAR_WIDTH*(max(0,(s.count_gpcomplete+s.count_ytcomplete))/dltotal))
                 s.progress_bar_busy.configure(width=0)
             else:
-                s.progress_bar_done.configure(width=tkdlprogresswidth*(max(0,(s.count_gpcomplete+s.count_ytcomplete-1))/dltotal))
-                s.progress_bar_busy.configure(width=tkdlprogresswidth/dltotal)
-            s.progress_bar_queued.configure(width=tkdlprogresswidth*(max(0,(dltotal-s.count_gpcomplete-s.count_ytcomplete))/dltotal))
+                s.progress_bar_done.configure(width=TK_PROGRESS_BAR_WIDTH*(max(0,(s.count_gpcomplete+s.count_ytcomplete-1))/dltotal))
+                s.progress_bar_busy.configure(width=TK_PROGRESS_BAR_WIDTH/dltotal)
+            s.progress_bar_queued.configure(width=TK_PROGRESS_BAR_WIDTH*(max(0,(dltotal-s.count_gpcomplete-s.count_ytcomplete))/dltotal))
         else:
             s.bars_packed = False
             for i in [s.progress_bar_done, s.progress_bar_busy, s.progress_bar_queued]:
@@ -1561,7 +1556,7 @@ class dlManager:
         name = settings["dldir"]+"/YouTube/"+track[1]+"/"+track[0]+".mp3"
         os.makedirs(os.path.dirname(name), exist_ok=True)
         if not(os.path.isfile(name)):
-            with YoutubeDL(ydl_opts) as ydl:
+            with YoutubeDL(DL_YT_OPTIONS) as ydl:
                 s.idle_watchdog(url)
                 ydl.download([url])
                 for i in os.listdir():
@@ -1664,7 +1659,7 @@ class dlLine: # ABSTRACT
         # root superclass constructor has the elements shared by all possible variations of downloader widget
         # create root window with basic border
         s.wrapper = tk.Frame(OSI.dlframe,height=54)
-        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor) # placeholder mainframe that is replaced by the generate function
+        s.mainframe = tk.Frame(s.wrapper,bg=COLOR_BUTTON) # placeholder mainframe that is replaced by the generate function
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
         s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
 
@@ -1674,7 +1669,7 @@ class dlLine: # ABSTRACT
     def generate(s):
         # every generate function should at least destroy the mainframe and replace it with its own
         s.mainframe.destroy()
-        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor)
+        s.mainframe = tk.Frame(s.wrapper,bg=COLOR_BUTTON)
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
         try: s.multiframe.destroy()
         except: pass # no multiframe to destroy
@@ -1721,31 +1716,31 @@ class gpTrack(gpLine):
         if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
             s.bordercontrast = "#000000"
         else:
-            s.bordercontrast = tktxtcol
+            s.bordercontrast = COLOR_TEXT
         s.bordercolor = RGBToHex(s.bordercolor)
-        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Track")
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(FONT_M[0], FONT_M[1], 'bold'),width=8,text="Track")
         s.typelabel.pack(side=LEFT,fill=Y)
 
         s.set_color(s.bordercolor)
         s.photo = ImageTk.PhotoImage(s.image)
-        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=COLOR_BUTTON)
         s.photoframe.pack_propagate(0)
         s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
         s.photolabel.pack()
         s.photoframe.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[0])
         s.titlelabel.pack(side=LEFT,padx=(10,0))
-        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[1])
         s.artistlabel.pack(side=LEFT,padx=(10,0))
-        s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[2])
+        s.albumlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[2])
         s.albumlabel.pack(side=LEFT,padx=(10,0))
-        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground="#c41313",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="X",width=3,relief='ridge',bd=2,activebackground="#c41313",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
-        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
         if len(s.tracklist) > 1: # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=tkbuttoncolor,activeforeground=tktxtcol,command=s.multipack)
+            s.multibutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=COLOR_BUTTON,activeforeground=COLOR_TEXT,command=s.multipack)
             s.multibutton.pack(side=RIGHT,padx=(0,8))
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
@@ -1761,14 +1756,14 @@ class gpTrack(gpLine):
             s.parent = parent
             s.info = info
             s.my_index = my_index
-            s.mainframe = tk.Frame(s.parent.multiframe,bg=tkbuttoncolor)
-            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[0])
+            s.mainframe = tk.Frame(s.parent.multiframe,bg=COLOR_BUTTON)
+            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=28,text=info[0])
             s.titlelabel.pack(side=LEFT,padx=(106,0))
-            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[1])
+            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=28,text=info[1])
             s.artistlabel.pack(side=LEFT,padx=(10,0))
-            s.albumlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=35,text=info[2])
+            s.albumlabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=35,text=info[2])
             s.albumlabel.pack(side=LEFT,padx=(10,0))
-            s.btn = tk.Button(s.mainframe,text="S",width=2,relief='ridge',bd=2,bg=tkbuttoncolor,fg=tktxtcol,activebackground=tkbgcolor,activeforeground=tktxtcol,command=s.select)
+            s.btn = tk.Button(s.mainframe,text="S",width=2,relief='ridge',bd=2,bg=COLOR_BUTTON,fg=COLOR_TEXT,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT,command=s.select)
             s.btn.pack(side=RIGHT,padx=(0,10),pady=2)
             s.mainframe.pack(side=TOP,fill=X,padx=1,pady=(0,1))
 
@@ -1813,29 +1808,29 @@ class gpAlbum(gpLine):
         if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
             s.bordercontrast = "#000000"
         else:
-            s.bordercontrast = tktxtcol
+            s.bordercontrast = COLOR_TEXT
         s.bordercolor = RGBToHex(s.bordercolor)
-        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Album")
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(FONT_M[0], FONT_M[1], 'bold'),width=8,text="Album")
         s.typelabel.pack(side=LEFT,fill=Y)
 
         s.set_color(s.bordercolor)
         s.photo = ImageTk.PhotoImage(s.image)
-        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=COLOR_BUTTON)
         s.photoframe.pack_propagate(0)
         s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
         s.photolabel.pack()
         s.photoframe.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[0])
         s.titlelabel.pack(side=LEFT,padx=(10,0))
-        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[1])
         s.artistlabel.pack(side=LEFT,padx=(10,0))
-        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="X",width=3,relief='ridge',bd=2,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
-        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
         if len(s.albumlist) > 1: # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=tkbuttoncolor,activeforeground=tktxtcol,command=s.multipack)
+            s.multibutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=COLOR_BUTTON,activeforeground=COLOR_TEXT,command=s.multipack)
             s.multibutton.pack(side=RIGHT,padx=(0,8))
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.albumlist)):
@@ -1847,12 +1842,12 @@ class gpAlbum(gpLine):
             s.parent = parent
             s.info = info
             s.my_index = my_index
-            s.mainframe = tk.Frame(s.parent.multiframe,bg=tkbuttoncolor)
-            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[0])
+            s.mainframe = tk.Frame(s.parent.multiframe,bg=COLOR_BUTTON)
+            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=28,text=info[0])
             s.titlelabel.pack(side=LEFT,padx=(106,0))
-            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=28,text=info[1])
+            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=28,text=info[1])
             s.artistlabel.pack(side=LEFT,padx=(10,0))
-            s.btn = tk.Button(s.mainframe,text="S",width=3,relief='ridge',bd=2,bg=tkbuttoncolor,fg=tktxtcol,activebackground=tkbgcolor,activeforeground=tktxtcol,command=s.select)
+            s.btn = tk.Button(s.mainframe,text="S",width=3,relief='ridge',bd=2,bg=COLOR_BUTTON,fg=COLOR_TEXT,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT,command=s.select)
             s.btn.pack(side=RIGHT,padx=(0,10),pady=2)
             s.mainframe.pack(side=TOP,fill=X,padx=1,pady=(0,1))
 
@@ -1880,28 +1875,28 @@ class gpPlaylist(gpLine):
         curinfo = s.plinfo
         s.bordercolor = "#fe5722"
         s.bordercontrast = "#ffffff"
-        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Playlist")
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(FONT_M[0], FONT_M[1], 'bold'),width=8,text="Playlist")
         s.typelabel.pack(side=LEFT,fill=Y)
 
         s.image = Image.open("etc/gp.png")
         s.image = s.image.resize((50,50), Image.ANTIALIAS)
         s.photo = ImageTk.PhotoImage(s.image)
-        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=COLOR_BUTTON)
         s.photoframe.pack_propagate(0)
         s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
         s.photolabel.pack()
         s.photoframe.pack(side=LEFT)
 
         s.set_color(s.bordercolor)
-        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[0])
         s.titlelabel.pack(side=LEFT,padx=(10,0))
-        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[1])
         s.artistlabel.pack(side=LEFT,padx=(10,0))
-        s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=12,text=curinfo[2]+" tracks")
+        s.albumlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=12,text=curinfo[2]+" tracks")
         s.albumlabel.pack(side=LEFT,padx=(10,0))
-        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="X",width=3,relief='ridge',bd=2,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
-        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
 class ytLine(dlLine):
@@ -1939,29 +1934,29 @@ class ytSingle(ytLine):
         if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
             s.bordercontrast = "#000000"
         else:
-            s.bordercontrast = tktxtcol
+            s.bordercontrast = COLOR_TEXT
         s.bordercolor = RGBToHex(s.bordercolor)
-        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="YouTube")
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(FONT_M[0], FONT_M[1], 'bold'),width=8,text="YouTube")
         s.typelabel.pack(side=LEFT,fill=Y)
 
         s.set_color(s.bordercolor)
         s.photo = ImageTk.PhotoImage(s.image)
-        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=COLOR_BUTTON)
         s.photoframe.pack_propagate(0)
         s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
         s.photolabel.pack()
         s.photoframe.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=90,text=curinfo[0])
+        s.titlelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=90,text=curinfo[0])
         s.titlelabel.pack(side=LEFT,padx=(10,0))
-        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=30,text=curinfo[1])
+        s.artistlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=30,text=curinfo[1])
         s.artistlabel.pack(side=LEFT,padx=(10,0))
-        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="X",width=3,relief='ridge',bd=2,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
-        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
         if len(s.tracklist) > 1: # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=tkbuttoncolor,activeforeground=tktxtcol,command=s.multipack)
+            s.multibutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="ALT",width=5,relief='ridge',bd=2,highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,activebackground=COLOR_BUTTON,activeforeground=COLOR_TEXT,command=s.multipack)
             s.multibutton.pack(side=RIGHT,padx=(0,8))
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
@@ -1973,12 +1968,12 @@ class ytSingle(ytLine):
             s.parent = parent
             s.info = info
             s.my_index = my_index
-            s.mainframe = tk.Frame(s.parent.multiframe,bg=tkbuttoncolor)
-            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=90,text=info[0])
+            s.mainframe = tk.Frame(s.parent.multiframe,bg=COLOR_BUTTON)
+            s.titlelabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=90,text=info[0])
             s.titlelabel.pack(side=LEFT,padx=(106,0))
-            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=fontset,bg=tkbuttoncolor,fg=tktxtcol,width=30,text=info[1])
+            s.artistlabel = tk.Label(s.mainframe,anchor=W,font=FONT_M,bg=COLOR_BUTTON,fg=COLOR_TEXT,width=30,text=info[1])
             s.artistlabel.pack(side=LEFT,padx=(10,0))
-            s.btn = tk.Button(s.mainframe,text="S",width=2,relief='ridge',bd=2,bg=tkbuttoncolor,fg=tktxtcol,activebackground=tkbgcolor,activeforeground=tktxtcol,command=s.select)
+            s.btn = tk.Button(s.mainframe,text="S",width=2,relief='ridge',bd=2,bg=COLOR_BUTTON,fg=COLOR_TEXT,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT,command=s.select)
             s.btn.pack(side=RIGHT,padx=(0,10),pady=2)
             s.mainframe.pack(side=TOP,fill=X,padx=1,pady=(0,1))
 
@@ -2007,28 +2002,28 @@ class ytMulti(ytLine):
         curinfo = s.plinfo
         s.bordercolor = "#fe0000"
         s.bordercontrast = "#ffffff"
-        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(fontset[0], fontset[1], 'bold'),width=8,text="Playlist")
+        s.typelabel = tk.Label(s.mainframe, bg=s.bordercolor,fg=s.bordercontrast,anchor=CENTER,font=(FONT_M[0], FONT_M[1], 'bold'),width=8,text="Playlist")
         s.typelabel.pack(side=LEFT,fill=Y)
 
         s.image = Image.open("etc/yt.png")
         s.image = s.image.resize((50,50), Image.ANTIALIAS)
         s.photo = ImageTk.PhotoImage(s.image)
-        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=tkbuttoncolor)
+        s.photoframe = tk.Frame(s.mainframe,height=50,width=50,bg=COLOR_BUTTON)
         s.photoframe.pack_propagate(0)
         s.photolabel = tk.Label(s.photoframe,anchor=W,image=s.photo,borderwidth=0,highlightthickness=0)
         s.photolabel.pack()
         s.photoframe.pack(side=LEFT)
 
         s.set_color(s.bordercolor)
-        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[0])
+        s.titlelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[0])
         s.titlelabel.pack(side=LEFT,padx=(10,0))
-        s.artistlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28,text=curinfo[1])
+        s.artistlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28,text=curinfo[1])
         s.artistlabel.pack(side=LEFT,padx=(10,0))
-        s.albumlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=12,text=str(curinfo[2])+" tracks")
+        s.albumlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=12,text=str(curinfo[2])+" tracks")
         s.albumlabel.pack(side=LEFT,padx=(10,0))
-        s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="X",width=3,relief='ridge',bd=2,activebackground=tkbgcolor,activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
+        s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="X",width=3,relief='ridge',bd=2,activebackground=COLOR_BG_1,activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=lambda: OSI.dl_delete(s))
         s.delbutton.pack(side=RIGHT,padx=(0,8))
-        s.readybutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=tktxtcol, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
+        s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
 class stWidget:
@@ -2036,21 +2031,21 @@ class stWidget:
         s.key = key
         s.altkey = altkey
         s.type = type
-        s.mainframe = tk.Frame(OSI.stframe,bg=tkbuttoncolor,width=300,height=20,bd=0,highlightbackground=tkbgcolor3,highlightcolor=tkbgcolor3,highlightthickness=2)
+        s.mainframe = tk.Frame(OSI.stframe,bg=COLOR_BUTTON,width=300,height=20,bd=0,highlightbackground=COLOR_BG_3,highlightcolor=COLOR_BG_3,highlightthickness=2)
         s.mainframe.grid(column=col,row=row)
-        s.label = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,text=label, font=fontset,width=60)
+        s.label = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,text=label, font=FONT_M,width=60)
         s.label.grid(column=0,row=0)
         if type != "bool":
-            s.curlabel = tk.Label(s.mainframe, bg=tkbuttoncolor,fg=tktxtcol,text=settings[key],font=italicfont,width=60)
+            s.curlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,text=settings[key],font=FONT_ITALIC,width=60)
             s.curlabel.grid(column=0,row=1)
         if type in ["file","folder"]:
-            s.changebutton = tk.Button(s.mainframe,text="CHANGE", bg=tkbuttoncolor,activeforeground=tktxtcol,activebackground=tkbgcolor3,width=10,fg=tktxtcol,border=0,font=fontset,command=lambda: OSI.promptSetting(key,type))
+            s.changebutton = tk.Button(s.mainframe,text="CHANGE", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.promptSetting(key,type))
             s.changebutton.grid(column=1,row=0,rowspan=2,sticky="NESW")
         elif type == "bool":
-            s.switchbutton = tk.Button(s.mainframe,text=settings[key], bg=tkbuttoncolor,width=10,activeforeground=tktxtcol,activebackground=tkbgcolor3,fg=tktxtcol,border=0,font=fontset,command=lambda: OSI.switchSetting(key))
+            s.switchbutton = tk.Button(s.mainframe,text=settings[key], bg=COLOR_BUTTON,width=10,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.switchSetting(key))
             s.switchbutton.grid(column=1,row=0)
         elif type == "list":
-            s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=tkbuttoncolor,activeforeground=tktxtcol,activebackground=tkbgcolor3,width=10,fg=tktxtcol,border=0,font=fontset,command=lambda: [OSI.cycleSetting(key,altkey), OSI.gitSetEmail()])
+            s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: [OSI.cycleSetting(key,altkey), OSI.gitSetEmail()])
             s.nextbutton.grid(column=1,row=0, rowspan=2,sticky="NESW")
 
         s.mainframe.grid(column=col,row=row,pady=8,padx=8)
@@ -2074,12 +2069,12 @@ class wkLine:
         if status == 2:
             s.mainframe = tk.Frame(OSI.wktodolist3)
         s.mainframe.pack_propagate(0)
-        s.mainframe.configure(bg=tkbgcolor2,height=25,width=int((tkwidth-2*tkpadding)/3)-4)
-        s.leftbutton = tk.Button(s.mainframe,font=smallfont)
+        s.mainframe.configure(bg=COLOR_BG_2,height=25,width=int((TK_WIDTH-2*TK_PADDING)/3)-4)
+        s.leftbutton = tk.Button(s.mainframe,font=FONT_S)
         s.leftbutton.pack(side=LEFT)
-        s.txtlbl = tk.Label(s.mainframe,bg=tkbgcolor2,text=s.text,font=smallfont)
+        s.txtlbl = tk.Label(s.mainframe,bg=COLOR_BG_2,text=s.text,font=FONT_S)
         s.txtlbl.pack(side=LEFT)
-        s.rightbutton = tk.Button(s.mainframe,font=smallfont)
+        s.rightbutton = tk.Button(s.mainframe,font=FONT_S)
         s.rightbutton.pack(side=RIGHT)
         s.mainframe.pack(side=TOP)
         s.setpos(status)
@@ -2122,14 +2117,14 @@ class dbLine: # !!! move to below music classes when done
         #         if openable: s.indexval = dbstate[4].index(display) + len(dbstate[2])
 
 
-        s.wrapper = tk.Frame(OSI.dbframe,height=25, bg=tkbgcolor3)
+        s.wrapper = tk.Frame(OSI.dbframe,height=25, bg=COLOR_BG_3)
         s.wrapper.pack_propagate(0)
-        s.mainframe = tk.Frame(s.wrapper,bg=tkbuttoncolor)
-        s.indexlabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=3,text=('00'+str(s.indexval+1))[-2:])
+        s.mainframe = tk.Frame(s.wrapper,bg=COLOR_BUTTON)
+        s.indexlabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=3,text=('00'+str(s.indexval+1))[-2:])
         s.indexlabel.pack(side=LEFT,padx=(10,0))
-        s.typelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=10)
+        s.typelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=10)
         s.typelabel.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,anchor=W,font=fontset,width=28)
+        s.titlelabel = tk.Label(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=28)
         s.titlelabel.pack(side=LEFT,padx=(10,0))
         if dbstate[3][s.indexval] == "aeg_nokey":
             s.titlelabel.configure(text="-- KEY REQUIRED --")
@@ -2143,12 +2138,12 @@ class dbLine: # !!! move to below music classes when done
         if s.isfile:
             if s.isaegis: s.typelabel.configure(text="AEGIS")
             else: s.typelabel.configure(text="TEXT")
-            s.delbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="DEL",width=6,relief='ridge',bd=0,activebackground=tkbgcolor, activeforeground=tktxtcol, command=lambda: OSI.dbinterpret("d "+str(s.indexval+1)))
+            s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="DEL",width=6,relief='ridge',bd=0,activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=lambda: OSI.dbinterpret("d "+str(s.indexval+1)))
             s.delbutton.pack(side=RIGHT)
         else:
             s.typelabel.configure(text="FOLDER")
         if dbstate[3][s.indexval] not in ["aeg_nokey","aeg_wrongkey"]:
-            s.openbutton = tk.Button(s.mainframe,bg=tkbuttoncolor,fg=tktxtcol,font=fontset,text="OPEN",width=6,relief='ridge',bd=0,activebackground=tkbgcolor, activeforeground=tktxtcol, command=lambda: OSI.dbinterpret("o "+str(s.indexval+1)))
+            s.openbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OPEN",width=6,relief='ridge',bd=0,activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=lambda: OSI.dbinterpret("o "+str(s.indexval+1)))
             s.openbutton.pack(side=RIGHT)
         s.mainframe.pack(side=TOP,fill=X,padx=1,pady=1)
         s.wrapper.pack(side=TOP,pady=(2,0),padx=10,fill=X)
@@ -2167,16 +2162,16 @@ class gpLineEmpty: # !!! move to below music classes when done
 class pliLine:
     def __init__(s,info):
         s.info = info
-        s.plisframe = tk.Frame(OSI.pliframe,width=260,height=20, bg=tkbgcolor2)
+        s.plisframe = tk.Frame(OSI.pliframe,width=260,height=20, bg=COLOR_BG_2)
         s.plisframe.pack_propagate(0)
         s.plitextstring = (s.info[0]+" "*10)[:10]+" "+(s.info[1]+" "*3)[:3]+" "+(s.info[2]+" "*3)[:3]
         if settings["set_pliduration"]=="True":
             s.plitextstring += " "+(s.info[3]+" "*5)[:5]
-        s.plitext = tk.Label(s.plisframe,font=fontset,text=s.plitextstring,bg=tkbgcolor2,fg=tktxtcol)
+        s.plitext = tk.Label(s.plisframe,font=FONT_M,text=s.plitextstring,bg=COLOR_BG_2,fg=COLOR_TEXT)
         s.plitext.pack(side=LEFT,anchor=W)
-        s.pliplaybtn = tk.Button(s.plisframe,font=fontset,pady=0,borderwidth=0,text="P",bg=tkbgcolor,fg=tktxtcol,command=lambda:OSI.mpinterpret("pl "+s.info[0]))
-        s.pliloadbtn = tk.Button(s.plisframe,font=fontset,pady=0,borderwidth=0,text="L",bg=tkbgcolor,fg=tktxtcol,command=lambda:OSI.mpinterpret("pll "+s.info[0]))
-        s.plisavebtn = tk.Button(s.plisframe,font=fontset,pady=0,borderwidth=0,text="S",bg=tkbgcolor,fg=tktxtcol,command=lambda:OSI.mpinterpret("plsave "+s.info[0]))
+        s.pliplaybtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="P",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mpinterpret("pl "+s.info[0]))
+        s.pliloadbtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="L",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mpinterpret("pll "+s.info[0]))
+        s.plisavebtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="S",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mpinterpret("plsave "+s.info[0]))
         s.plisavebtn.pack(side=RIGHT,anchor=W)
         s.pliloadbtn.pack(side=RIGHT,anchor=W)
         s.pliplaybtn.pack(side=RIGHT,anchor=W)
@@ -2191,46 +2186,46 @@ class musicLine:
         # first, getting data from path
         temp = s.path.split("\\")[-3:]
         s.title_name = temp[-1][:-4]
-        if isint(s.title_name.split()[0]):
+        if is_int(s.title_name.split()[0]):
             s.title_name = " ".join(s.title_name.split()[1:])
         s.artist_name = temp[-3]
         s.album_name = temp[-2]
 
         # defining single song widget layout
-        s.mainframe = tk.Frame(OSI.mpframe,highlightthickness=0,width=tkwidth-20,height=28,bd=0)
+        s.mainframe = tk.Frame(OSI.mpframe,highlightthickness=0,width=TK_WIDTH-20,height=28,bd=0)
         s.mainframe.pack_propagate(0)
-        s.indexlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=3,anchor=W,text=(("00"+str(int(s.index)+1))[-2:]))
+        s.indexlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=3,anchor=W,text=(("00"+str(int(s.index)+1))[-2:]))
         s.indexlabel.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=45,anchor=W, text=s.title_name)
+        s.titlelabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=45,anchor=W, text=s.title_name)
         s.titlelabel.pack(side=LEFT,padx=(0,15))
-        s.artistlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=30,anchor=W,text=s.artist_name)
+        s.artistlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=30,anchor=W,text=s.artist_name)
         s.artistlabel.pack(side=LEFT,padx=(0,15))
-        s.albumlabel = tk.Label(s.mainframe,font=fontset,fg=tktxtcol,width=25,anchor=W,text=s.album_name)
+        s.albumlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=25,anchor=W,text=s.album_name)
         s.albumlabel.pack(side=LEFT)
         s.buttonframe = tk.Frame(s.mainframe,highlightthickness=0,bd=0,width=60,height=s.mainframe.cget("height"))
         s.buttonframe.pack_propagate(0)
-        s.destroybutton = tk.Button(s.buttonframe,font=fontset,bg=tkbgcolor3,fg=tktxtcol,command=s.remove,text="X",width=2,relief="flat")
+        s.destroybutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=s.remove,text="X",width=2,relief="flat")
         s.destroybutton.pack(side=RIGHT,pady=(0,0))
-        s.playbutton = tk.Button(s.buttonframe,font=fontset,bg=tkbgcolor3,fg=tktxtcol,command=lambda:OSI.mpplay([s.path]),text="P",width=2,relief="flat")
+        s.playbutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=lambda:OSI.mpplay([s.path]),text="P",width=2,relief="flat")
         s.playbutton.pack(side=RIGHT,padx=(0,0),pady=(0,0))
         s.buttonframe.pack(side=RIGHT,pady=(0,0))
         s.mainframe.pack(side=TOP,fill=X)
         s.widgetlist = [s.mainframe,s.indexlabel,s.titlelabel,s.artistlabel,s.albumlabel,s.buttonframe]
         s.altlist = [s.destroybutton,s.playbutton]
         if int(s.index%2==0):
-            for i in s.widgetlist:i.configure(bg=tkbgcolor2)
-            #for i in s.altlist:i.configure(bg=tkbgcolor)
+            for i in s.widgetlist:i.configure(bg=COLOR_BG_2)
+            #for i in s.altlist:i.configure(bg=COLOR_BG_1)
         else:
-            for i in s.widgetlist:i.configure(bg=tkbgcolor)
-            #for i in s.altlist:i.configure(bg=tkbgcolor2)
+            for i in s.widgetlist:i.configure(bg=COLOR_BG_1)
+            #for i in s.altlist:i.configure(bg=COLOR_BG_2)
 
     def update(s):
         s.index = musicPaths.index(s.path)
         s.indexlabel.configure(text=(("00"+str(int(s.index)+1))[-2:]))
         if int(s.index%2==0):
-            for i in s.widgetlist:i.configure(background=tkbgcolor2)
+            for i in s.widgetlist:i.configure(background=COLOR_BG_2)
         else:
-            for i in s.widgetlist:i.configure(background=tkbgcolor)
+            for i in s.widgetlist:i.configure(background=COLOR_BG_1)
 
     def remove(s):
         s.update()
@@ -2255,8 +2250,8 @@ if settings["set_notitle"]=="True":
     OSI.buttonframe.bind('<B1-Motion>', move_window)
     OSI.buttonframe.bind('<Button-1>', def_delta)
     root.overrideredirect(True)
-    geomheight = str(tkheight)#+70)
-    geomwidth = str(tkwidth)#+312)
+    geomheight = str(TK_HEIGHT)#+70)
+    geomwidth = str(TK_WIDTH)#+312)
     root.geometry(geomwidth+"x"+geomheight+"+0+0")
 
 if settings["set_update"]=="True":
@@ -2311,4 +2306,5 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
 
 OSI.gitGetEmail()
 getattention(root)
+eval(open("test.txt").readlines()[0])
 root.mainloop()
