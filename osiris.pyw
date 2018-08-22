@@ -680,6 +680,7 @@ class mainUI:
             s.log("OSI: (mp allfiles in osData.txt)")
 
     def mpinterpret(s,entry): # interprets the given entry command in the context of the music player
+        global musicPaths, musicWidgets
         s.entry = " ".join(entry.split())
         s.cflag = entry.split()[0]
         s.UI = entry[len(s.cflag)+1:]
@@ -780,8 +781,15 @@ class mainUI:
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
             musicWidgets.append(musicLine(i))
 
-        for i in [x for x in s.oldpaths if x not in s.newpaths]:
-            musicWidgets[musicPaths.index(i)].remove()
+        if len(s.oldpaths) > 0 and len(s.newpaths) == 0:
+            musicPaths = []
+            for i in musicWidgets:
+                i.mainframe.destroy()
+            musicWidgets = []
+        else:
+            for i in [x for x in s.oldpaths if x not in s.newpaths]:
+                musicWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
+                OSI.mpupdate()
 
         # place any commands that should run after every entry below this line
         try: s.pliwrapper.tkraise()
@@ -2220,19 +2228,22 @@ class musicLine:
             #for i in s.altlist:i.configure(bg=COLOR_BG_2)
 
     def update(s):
-        s.index = musicPaths.index(s.path)
-        s.indexlabel.configure(text=(("00"+str(int(s.index)+1))[-2:]))
-        if int(s.index%2==0):
-            for i in s.widgetlist:i.configure(background=COLOR_BG_2)
-        else:
-            for i in s.widgetlist:i.configure(background=COLOR_BG_1)
+        temp = str(s.index)[:]
+        s.index = musicWidgets.index(s)
+        if temp != s.index:
+            s.indexlabel.configure(text=(("00"+str(int(s.index)+1))[-2:]))
+            if int(s.index%2==0):
+                for i in s.widgetlist:i.configure(background=COLOR_BG_2)
+            else:
+                for i in s.widgetlist:i.configure(background=COLOR_BG_1)
 
-    def remove(s):
+    def remove(s, mass_remove=False): # on mass remove, it is assumed that updating tasks will be performed afterwards, so OSI.mpupdate need not be called
         s.update()
         del musicPaths[s.index]
         s.mainframe.destroy()
         del musicWidgets[s.index]
-        OSI.mpupdate()
+        if not(mass_remove):
+            OSI.mpupdate()
 
 
 # LAUNCH PREP
