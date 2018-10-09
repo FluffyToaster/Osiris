@@ -53,6 +53,21 @@ def exportSettings(path="etc/settings.txt"):
 
 importSettings()
 
+class MyLogger(object):
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        print(msg)
+
+
+def my_hook(d):
+    if d['status'] == 'finished':
+        print('Done downloading, now converting ...')
+
 # LOCAL SETTINGS
 # tkinter settings
 FONT_S = ("Roboto Mono", "8")  # font name + size
@@ -95,8 +110,11 @@ DL_YT_OPTIONS = {
     'key': 'FFmpegExtractAudio',
     'preferredcodec': 'mp3',
     'preferredquality': '320',
-    }]
+    }],
+    'logger': MyLogger(),
+    'progress_hooks': [my_hook]
 }
+DL_POPEN_ARGS = ['youtube-dl','-f','bestaudio/best','-x','--audio-format','mp3','--audio-quality','320K']
 
 # setup
 if not os.path.exists(DB_DIR):
@@ -769,7 +787,7 @@ class mainUI:
     def mpplay(s,songlist): # function to play a list of .mp3 files with foobar
         #mpcount(songlist)
         s.log("OSI: Playing " + str(len(songlist)) + " song(s)")
-        subprocess.Popen([settings["foobarexe"]]+[i for i in songlist])
+        subprocess.Popen([settings["foobarexe"]]+[i for i in songlist], shell=False)
 
     def mpplgen(s): # generate the playlist info widget
         # define surrounding layout (regardless of playlists)
@@ -1521,24 +1539,15 @@ class dlManager:
         name = settings["dldir"]+"/YouTube/"+track[1]+"/"+track[0]+".mp3"
         os.makedirs(os.path.dirname(name), exist_ok=True)
         if not(os.path.isfile(name)):
-            with YoutubeDL(DL_YT_OPTIONS) as ydl:
-                s.idle_watchdog(url)
-                ydl.download([url])
-                for i in os.listdir():
-                    if i.endswith(".mp3") and url in i:
-                        os.rename(i,name)
+            s.idle_conv_watchdog(url, name, track)
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            subprocess.Popen(DL_POPEN_ARGS+[url], startupinfo=startupinfo)
         else:
             OSI.log("OSI: YT DL skipped")
             s.idle = True
             s.refreshvalues()
             return
-        imagepath = "/".join(name.split("/")[:-1])+"/"+url+".png"
-        s.generate_image_data([track]).save(imagepath)
-        OSI.dlalbumartify(name, imagepath)
-        file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
-        OSI.gptagify(name, file_data)
-        s.count_convtotal -= 1
-        s.refreshvalues()
 
     def generate_image_data(s, tracklist, _index=None):
         if _index != None:
@@ -1557,14 +1566,27 @@ class dlManager:
         else:
             return background.copy()
 
-    def idle_watchdog(s, id): # looks for the signs that a song has started converting
+    def idle_conv_watchdog(s, id, name, track, recursing = False): # keeps UI up to date and renames file when done
         for i in os.listdir():
-            if i.endswith(id+".mp3") and os.path.getsize(i) < 100: # found a match
-                s.idle = True
-                s.count_convtotal += 1
-                return
+            if i.endswith(id+".mp3"):
+                if os.path.getsize(i) < 100 and not recursing: # found a match
+                    s.idle = True
+                    s.count_convtotal += 1
+                    OSI.log("1")
+                    recursing = True
+                elif os.path.getsize(i) > 10 and not i[:-3]+"webm" in os.listdir():
+                    OSI.log("2")
+                    os.rename(i,name)
+                    imagepath = "/".join(name.split("/")[:-1])+"/"+id+".png"
+                    s.generate_image_data([track]).save(imagepath)
+                    OSI.dlalbumartify(name, imagepath)
+                    file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
+                    OSI.gptagify(name, file_data)
+                    s.count_convtotal -= 1
+                    s.refreshvalues()
+                    return
         s.refreshvalues()
-        root.after(100, lambda: s.idle_watchdog(id)) # else, keep looking
+        root.after(100, lambda: s.idle_conv_watchdog(id, name, track, recursing)) # else, keep looking
 
     def get_correct_channel_name(s, track):
         trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+track[3]+"&key="+settings["yt_api_key"])
@@ -2224,6 +2246,5 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
                 stWidget("set_draggable","Make window draggable with mouse",0,7,"bool")]
 
-OSI.gitGetEmail()
 getattention(root)
 root.mainloop()
