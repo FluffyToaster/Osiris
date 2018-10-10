@@ -19,6 +19,7 @@ import threading
 import datetime
 import logging # used to quiet gmusicapi warnings
 import queue
+from math import ceil, floor
 
 # window fuckery libaries
 import tkinter.ttk as ttk
@@ -80,6 +81,7 @@ COLOR_BUTTON_ACTIVE = COLOR_BG_1
 COLOR_TEXT = "#D3D7DE"
 
 # mp settings
+MP_PAGE_SIZE = 32 # widgets on a page
 ALLOWED_FILETYPES = [".mp3"] # could also allows ".flac",".m4a",".wav" but would increase time to refresh
 
 # db settings
@@ -101,7 +103,7 @@ DL_YT_OPTIONS = {
 # setup
 if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
-musicWidgets = []
+mpWidgets = []
 musicPaths = []
 allfiles = []
 dbloc = DB_DIR
@@ -128,7 +130,7 @@ def set_appwindow(root): # let the window have a taskbar icon
     root.wm_withdraw()
     root.after(10, lambda: root.wm_deiconify())
 
-def getattention(root):
+def get_attention(root):
     root.lift()
     root.attributes("-topmost", True)
     root.attributes("-topmost", False)
@@ -319,6 +321,8 @@ class mainUI:
         s.entryhist = ['']
         s.entrypos = 0
         s.state = "max"
+
+        s.mpPage = 0
 
         # start of window definition and setup
         s.master = master
@@ -680,7 +684,7 @@ class mainUI:
             s.log("OSI: (mp allfiles in osData.txt)")
 
     def mpinterpret(s,entry): # interprets the given entry command in the context of the music player
-        global musicPaths, musicWidgets
+        global musicPaths, mpWidgets
         s.entry = " ".join(entry.split())
         s.cflag = entry.split()[0]
         s.UI = entry[len(s.cflag)+1:]
@@ -730,6 +734,13 @@ class mainUI:
         elif s.cflag == "c":
             s.newpaths = []
             s.log("OSI: Cleared selection")
+        elif s.cflag == "pg":
+            if is_int(s.UI):
+                s.mpPage = int(s.UI - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+        elif s.cflag == "pgn":
+            s.mpPage = (s.mpPage + 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+        elif s.cflag == "pgp":
+            s.mpPage = (s.mpPage - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
         elif s.cflag == "pl":
             if readFromText(str("mp pl "+s.UI)) != False:
                 s.mpplay(readFromText(str("mp pl "+s.UI)))
@@ -779,24 +790,33 @@ class mainUI:
 
         # now that the new paths are known, update the widgets accordingly
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
-            musicWidgets.append(musicLine(i))
+            mpWidgets.append(musicLine(i))
 
         if len(s.oldpaths) > 0 and len(s.newpaths) == 0:
             musicPaths = []
-            for i in musicWidgets:
+            for i in mpWidgets:
                 i.mainframe.destroy()
-            musicWidgets = []
+            mpWidgets = []
         else:
             for i in [x for x in s.oldpaths if x not in s.newpaths]:
-                musicWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
+                mpWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
                 OSI.mpupdate()
 
         # place any commands that should run after every entry below this line
+
+        # decide which mpWidgets to show
+        for i in mpWidgets:
+            i.hide()
+        for i in range((s.mpPage) * MP_PAGE_SIZE, min(len(mpWidgets), ((s.mpPage + 1) * MP_PAGE_SIZE))):
+            mpWidgets[i].show()
+            print(i)
+
+        # raise playlist info widget above entries
         try: s.pliwrapper.tkraise()
         except: pass
 
     def mpupdate(s): # get all the musicLine widgets to update themselves
-        for i in musicWidgets: i.update()
+        for i in mpWidgets: i.update()
 
     def mpplay(s,songlist): # function to play a list of .mp3 files with foobar
         #mpcount(songlist)
@@ -2202,13 +2222,13 @@ class musicLine:
         # defining single song widget layout
         s.mainframe = tk.Frame(OSI.mpframe,highlightthickness=0,width=TK_WIDTH-20,height=28,bd=0)
         s.mainframe.pack_propagate(0)
-        s.indexlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=3,anchor=W,text=(("00"+str(int(s.index)+1))[-2:]))
+        s.indexlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=4,anchor=W,text=(("000"+str(int(s.index)+1))[-3:]))
         s.indexlabel.pack(side=LEFT)
         s.titlelabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=45,anchor=W, text=s.title_name)
         s.titlelabel.pack(side=LEFT,padx=(0,15))
         s.artistlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=30,anchor=W,text=s.artist_name)
         s.artistlabel.pack(side=LEFT,padx=(0,15))
-        s.albumlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=25,anchor=W,text=s.album_name)
+        s.albumlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=40,anchor=W,text=s.album_name)
         s.albumlabel.pack(side=LEFT)
         s.buttonframe = tk.Frame(s.mainframe,highlightthickness=0,bd=0,width=60,height=s.mainframe.cget("height"))
         s.buttonframe.pack_propagate(0)
@@ -2217,7 +2237,7 @@ class musicLine:
         s.playbutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=lambda:OSI.mpplay([s.path]),text="P",width=2,relief="flat")
         s.playbutton.pack(side=RIGHT,padx=(0,0),pady=(0,0))
         s.buttonframe.pack(side=RIGHT,pady=(0,0))
-        s.mainframe.pack(side=TOP,fill=X)
+
         s.widgetlist = [s.mainframe,s.indexlabel,s.titlelabel,s.artistlabel,s.albumlabel,s.buttonframe]
         s.altlist = [s.destroybutton,s.playbutton]
         if int(s.index%2==0):
@@ -2227,9 +2247,16 @@ class musicLine:
             for i in s.widgetlist:i.configure(bg=COLOR_BG_1)
             #for i in s.altlist:i.configure(bg=COLOR_BG_2)
 
+    def show(s):
+        s.mainframe.pack(side=TOP,fill=X)
+
+    def hide(s):
+        if s.mainframe.winfo_ismapped():
+            s.mainframe.pack_forget()
+
     def update(s):
         temp = str(s.index)[:]
-        s.index = musicWidgets.index(s)
+        s.index = mpWidgets.index(s)
         if temp != s.index:
             s.indexlabel.configure(text=(("00"+str(int(s.index)+1))[-2:]))
             if int(s.index%2==0):
@@ -2241,7 +2268,7 @@ class musicLine:
         s.update()
         del musicPaths[s.index]
         s.mainframe.destroy()
-        del musicWidgets[s.index]
+        del mpWidgets[s.index]
         if not(mass_remove):
             OSI.mpupdate()
 
@@ -2315,7 +2342,5 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("set_draggable","Make window draggable with mouse",0,7,"bool"),
                 stWidget("git_email","Git Email",1,0,"list","git_emails")]
 
-OSI.gitGetEmail()
-getattention(root)
-eval(open("test.txt").readlines()[0])
+get_attention(root)
 root.mainloop()
