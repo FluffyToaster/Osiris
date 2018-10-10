@@ -53,21 +53,6 @@ def exportSettings(path="etc/settings.txt"):
 
 importSettings()
 
-class MyLogger(object):
-    def debug(self, msg):
-        pass
-
-    def warning(self, msg):
-        pass
-
-    def error(self, msg):
-        print(msg)
-
-
-def my_hook(d):
-    if d['status'] == 'finished':
-        print('Done downloading, now converting ...')
-
 # LOCAL SETTINGS
 # tkinter settings
 FONT_S = ("Roboto Mono", "8")  # font name + size
@@ -104,16 +89,7 @@ DB_ENC_LEVEL = 3 # depth of Aegis AES-256 ecryption
 # dl settings
 DL_ALTERNATIVES = 5 # number of alternatives to display when searching
 DL_CROP_THRESH = 50 # used when cropping YT thumbnails
-DL_YT_OPTIONS = {
-    'format': 'bestaudio/best',
-    'postprocessors': [{
-    'key': 'FFmpegExtractAudio',
-    'preferredcodec': 'mp3',
-    'preferredquality': '320',
-    }],
-    'logger': MyLogger(),
-    'progress_hooks': [my_hook]
-}
+
 DL_POPEN_ARGS = ['youtube-dl','-f','bestaudio/best','-x','--audio-format','mp3','--audio-quality','320K']
 
 # setup
@@ -1217,10 +1193,6 @@ class mainUI:
     def dl_delete(s, object):
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
 
-    def ytbackgroundprep(s):
-        global YoutubeDL
-        from youtube_dl import YoutubeDL
-
     def gpbackgroundlogin(s):
         global Mobileclient, Webclient
         from gmusicapi import Mobileclient, Webclient
@@ -1526,6 +1498,7 @@ class dlManager:
             s.count_yttotal = 0
             s.state = "waiting"
             root.after(200,lambda: OSI.mprefresh())
+            OSI.log("OSI: All downloads finished")
         else:
             root.after(100,s.process_downloads)
         s.refreshvalues()
@@ -1572,10 +1545,8 @@ class dlManager:
                 if os.path.getsize(i) < 100 and not recursing: # found a match
                     s.idle = True
                     s.count_convtotal += 1
-                    OSI.log("1")
                     recursing = True
                 elif os.path.getsize(i) > 10 and not i[:-3]+"webm" in os.listdir():
-                    OSI.log("2")
                     os.rename(i,name)
                     imagepath = "/".join(name.split("/")[:-1])+"/"+id+".png"
                     s.generate_image_data([track]).save(imagepath)
@@ -2234,7 +2205,6 @@ webapi = None
 gplogin = False
 gppass = settings["gppass"]
 threading.Thread(target=OSI.gpbackgroundlogin).start()
-threading.Thread(target=OSI.ytbackgroundprep).start()
 
 # settings
 OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
