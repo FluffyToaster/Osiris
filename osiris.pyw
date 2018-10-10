@@ -1406,7 +1406,7 @@ class mainUI:
 
 class dlManager:
     def __init__(s):
-        s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=30, width=TK_PROGRESS_BAR_WIDTH)
+        s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=35, width=TK_PROGRESS_BAR_WIDTH)
         s.mainframe.pack_propagate(0)
         s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=COLOR_BG_1)
         s.progress_bar_wrapper.place(width=TK_PROGRESS_BAR_WIDTH, height=3)
@@ -1483,15 +1483,16 @@ class dlManager:
 
     def process_downloads(s): # function that updates the downloading process
         # process the top of the gp queue
-        if s.idle:
+        if s.idle and len(s.gptracks) + len(s.yttracks) > 0:
             if len(s.gptracks) > 0:
                 threading.Thread(target=lambda: s.gp_download(s.gptracks.pop(0))).start()
             elif len(s.yttracks) > 0:
                 threading.Thread(target=lambda: s.yt_download(s.yttracks.pop(0))).start()
+
         # decide if we need to keep downloading
         if len(s.gptracks) + len(s.yttracks) > 0:
             root.after(50,s.process_downloads) # continue the loop
-        elif s.idle:
+        elif s.idle and s.count_convtotal == 0:
             s.count_gpcomplete = 0
             s.count_gptotal = 0
             s.count_ytcomplete = 0
@@ -1499,7 +1500,7 @@ class dlManager:
             s.state = "waiting"
             root.after(200,lambda: OSI.mprefresh())
             OSI.log("OSI: All downloads finished")
-        else:
+        else: # if idle but converting: wait a bit longer
             root.after(100,s.process_downloads)
         s.refreshvalues()
 
