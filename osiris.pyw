@@ -19,6 +19,7 @@ import threading
 import datetime
 import logging # used to quiet gmusicapi warnings
 import queue
+from math import ceil, floor
 
 # window fuckery libaries
 import tkinter.ttk as ttk
@@ -80,6 +81,7 @@ COLOR_BUTTON_ACTIVE = COLOR_BG_1
 COLOR_TEXT = "#D3D7DE"
 
 # mp settings
+MP_PAGE_SIZE = 32 # widgets on a page
 ALLOWED_FILETYPES = [".mp3"] # could also allows ".flac",".m4a",".wav" but would increase time to refresh
 
 # db settings
@@ -87,6 +89,7 @@ DB_DIR = "database/"
 DB_ENC_LEVEL = 3 # depth of Aegis AES-256 ecryption
 
 # dl settings
+DL_PAGE_SIZE = 13 # widgets on a page
 DL_ALTERNATIVES = 5 # number of alternatives to display when searching
 DL_CROP_THRESH = 50 # used when cropping YT thumbnails
 DL_YT_OPTIONS = {
@@ -101,7 +104,7 @@ DL_YT_OPTIONS = {
 # setup
 if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
-musicWidgets = []
+mpWidgets = []
 musicPaths = []
 allfiles = []
 dbloc = DB_DIR
@@ -128,7 +131,7 @@ def set_appwindow(root): # let the window have a taskbar icon
     root.wm_withdraw()
     root.after(10, lambda: root.wm_deiconify())
 
-def getattention(root):
+def get_attention(root):
     root.lift()
     root.attributes("-topmost", True)
     root.attributes("-topmost", False)
@@ -319,6 +322,9 @@ class mainUI:
         s.entryhist = ['']
         s.entrypos = 0
         s.state = "max"
+
+        s.mpPage = 0
+        s.dlPage = 0
 
         # start of window definition and setup
         s.master = master
@@ -680,7 +686,7 @@ class mainUI:
             s.log("OSI: (mp allfiles in osData.txt)")
 
     def mpinterpret(s,entry): # interprets the given entry command in the context of the music player
-        global musicPaths, musicWidgets
+        global musicPaths, mpWidgets
         s.entry = " ".join(entry.split())
         s.cflag = entry.split()[0]
         s.UI = entry[len(s.cflag)+1:]
@@ -730,6 +736,13 @@ class mainUI:
         elif s.cflag == "c":
             s.newpaths = []
             s.log("OSI: Cleared selection")
+        elif s.cflag == "pg":
+            if is_int(s.UI):
+                s.mpPage = int(s.UI - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+        elif s.cflag == "pgn":
+            s.mpPage = (s.mpPage + 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+        elif s.cflag == "pgp":
+            s.mpPage = (s.mpPage - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
         elif s.cflag == "pl":
             if readFromText(str("mp pl "+s.UI)) != False:
                 s.mpplay(readFromText(str("mp pl "+s.UI)))
@@ -779,24 +792,35 @@ class mainUI:
 
         # now that the new paths are known, update the widgets accordingly
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
-            musicWidgets.append(musicLine(i))
+            mpWidgets.append(musicLine(i))
 
         if len(s.oldpaths) > 0 and len(s.newpaths) == 0:
             musicPaths = []
-            for i in musicWidgets:
+            for i in mpWidgets:
                 i.mainframe.destroy()
-            musicWidgets = []
+            mpWidgets = []
         else:
             for i in [x for x in s.oldpaths if x not in s.newpaths]:
-                musicWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
+                mpWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
                 OSI.mpupdate()
 
         # place any commands that should run after every entry below this line
+
+        # decide which mpWidgets to show
+        for i in mpWidgets:
+            i.hide()
+        for i in range((s.mpPage) * MP_PAGE_SIZE, min(len(mpWidgets), ((s.mpPage + 1) * MP_PAGE_SIZE))):
+            mpWidgets[i].show()
+
+        # update page handler
+        s.mppagehandler.set_page(s.mpPage+1, len(mpWidgets))
+
+        # raise playlist info widget above entries
         try: s.pliwrapper.tkraise()
         except: pass
 
     def mpupdate(s): # get all the musicLine widgets to update themselves
-        for i in musicWidgets: i.update()
+        for i in mpWidgets: i.update()
 
     def mpplay(s,songlist): # function to play a list of .mp3 files with foobar
         #mpcount(songlist)
@@ -1129,9 +1153,21 @@ class mainUI:
 #################################### DOWNLOAD DEFS #####################################################################
     def dlinterpret(s,entry):
         s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
+
         if entry.startswith("d ") and is_int(entry.split()[1]): # if entry is delete command
             # del
             pass
+
+        elif entry.startswith("pg "):
+            if is_int(entry[3:]):
+                s.dlPage = int(int(entry[3:]) - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+
+        elif entry == "pgn":
+            s.dlPage = (s.dlPage + 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+
+        elif entry == "pgp":
+            s.dlPage = (s.dlPage - 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+
         elif entry == "dl":
             # go through all open widgets and tell them to ready
             for dl in dlWidgets:
@@ -1228,6 +1264,16 @@ class mainUI:
             if search_results != False:
                 dlWidgets.append(gpTrack(search_results))
 
+        # decide which dlWidgets to show
+        for i in dlWidgets:
+            i.hide()
+
+        for i in range((s.dlPage) * DL_PAGE_SIZE, min(len(dlWidgets), ((s.dlPage + 1) * DL_PAGE_SIZE))):
+            dlWidgets[i].show()
+
+        # update page handler
+        s.dlpagehandler.set_page(s.dlPage+1, len(dlWidgets))
+
     def dl_delete(s, object):
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
 
@@ -1254,7 +1300,8 @@ class mainUI:
         OSI.log("OSI: GP logged in")
         if gplogin == True:
             s.dlloginreq.pack_forget()
-            DLMAN.mainframe.pack(side=BOTTOM, fill=X)
+            DLMAN.mainframe.pack(side=BOTTOM, fill=X, pady=(10,0))
+        OSI.dlpagehandler = pageHandler("dl", DL_PAGE_SIZE)
         time.sleep(1)
         OSI.log("OSI: All systems nominal")
 
@@ -1456,6 +1503,42 @@ class mainUI:
 
     #################################### END OF MAINUI #####################################################################
 
+class pageHandler:
+    def __init__(s, mode, page_size):
+        s.mode = mode
+        s.page_size = page_size
+
+        s.root = OSI.frames[OSI.modes.index(s.mode)]
+        s.interpreter = OSI.interpreters[OSI.modes.index(s.mode)]
+
+        s.mainframe = tk.Frame(s.root, bg=COLOR_BUTTON,height=30, width = 400)
+        s.mainframe.pack_propagate(0)
+
+
+        s.prev_button = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE, activeforeground=COLOR_TEXT, font=FONT_M, text="PREVIOUS", width=10, command=s.prev)
+        s.prev_button.pack(side=LEFT)
+
+        s.next_button = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE, activeforeground=COLOR_TEXT, font=FONT_M, text="NEXT", width=10, command=s.next)
+        s.next_button.pack(side=RIGHT)
+
+        s.current_page = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, width=10, text="PAGE 1")
+        s.current_page.pack(side=TOP)
+
+
+
+    def set_page(s, new, widget_count):
+        if widget_count > s.page_size and not s.mainframe.winfo_ismapped():
+            s.mainframe.pack(side=BOTTOM)
+        if widget_count <= s.page_size and s.mainframe.winfo_ismapped():
+            s.mainframe.pack_forget()
+        s.current_page.configure(text="PAGE " + str(new))
+
+    def prev(s):
+        s.interpreter("pgp")
+
+    def next(s):
+        s.interpreter("pgn")
+
 class dlManager:
     def __init__(s):
         s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=30, width=TK_PROGRESS_BAR_WIDTH)
@@ -1643,7 +1726,6 @@ class dlManager:
                 try:
                     OSI.dl_url2file(track[3],(folderpath+"/albumArt.png"))
                 except:
-                    print("track[3] failed!")
                     OSI.dl_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
             OSI.dlalbumartify(songpath,folderpath+"/albumArt.png")
             OSI.gptagify(songpath,track)
@@ -1669,7 +1751,6 @@ class dlLine: # ABSTRACT
         s.wrapper = tk.Frame(OSI.dlframe,height=54)
         s.mainframe = tk.Frame(s.wrapper,bg=COLOR_BUTTON) # placeholder mainframe that is replaced by the generate function
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
-        s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
 
     def __str__(s):
         return "dbLine (INTERFACE!)"
@@ -1681,6 +1762,13 @@ class dlLine: # ABSTRACT
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
         try: s.multiframe.destroy()
         except: pass # no multiframe to destroy
+
+    def show(s):
+        s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
+
+    def hide(s):
+        if s.wrapper.winfo_ismapped():
+            s.wrapper.pack_forget()
 
     def set_color(s,color):
         if type(color) != str and len(color) == 3:
@@ -2202,13 +2290,13 @@ class musicLine:
         # defining single song widget layout
         s.mainframe = tk.Frame(OSI.mpframe,highlightthickness=0,width=TK_WIDTH-20,height=28,bd=0)
         s.mainframe.pack_propagate(0)
-        s.indexlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=3,anchor=W,text=(("00"+str(int(s.index)+1))[-2:]))
+        s.indexlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=4,anchor=W,text=(("000"+str(int(s.index)+1))[-3:]))
         s.indexlabel.pack(side=LEFT)
         s.titlelabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=45,anchor=W, text=s.title_name)
         s.titlelabel.pack(side=LEFT,padx=(0,15))
         s.artistlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=30,anchor=W,text=s.artist_name)
         s.artistlabel.pack(side=LEFT,padx=(0,15))
-        s.albumlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=25,anchor=W,text=s.album_name)
+        s.albumlabel = tk.Label(s.mainframe,font=FONT_M,fg=COLOR_TEXT,width=40,anchor=W,text=s.album_name)
         s.albumlabel.pack(side=LEFT)
         s.buttonframe = tk.Frame(s.mainframe,highlightthickness=0,bd=0,width=60,height=s.mainframe.cget("height"))
         s.buttonframe.pack_propagate(0)
@@ -2217,7 +2305,7 @@ class musicLine:
         s.playbutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=lambda:OSI.mpplay([s.path]),text="P",width=2,relief="flat")
         s.playbutton.pack(side=RIGHT,padx=(0,0),pady=(0,0))
         s.buttonframe.pack(side=RIGHT,pady=(0,0))
-        s.mainframe.pack(side=TOP,fill=X)
+
         s.widgetlist = [s.mainframe,s.indexlabel,s.titlelabel,s.artistlabel,s.albumlabel,s.buttonframe]
         s.altlist = [s.destroybutton,s.playbutton]
         if int(s.index%2==0):
@@ -2227,9 +2315,16 @@ class musicLine:
             for i in s.widgetlist:i.configure(bg=COLOR_BG_1)
             #for i in s.altlist:i.configure(bg=COLOR_BG_2)
 
+    def show(s):
+        s.mainframe.pack(side=TOP,fill=X)
+
+    def hide(s):
+        if s.mainframe.winfo_ismapped():
+            s.mainframe.pack_forget()
+
     def update(s):
         temp = str(s.index)[:]
-        s.index = musicWidgets.index(s)
+        s.index = mpWidgets.index(s)
         if temp != s.index:
             s.indexlabel.configure(text=(("00"+str(int(s.index)+1))[-2:]))
             if int(s.index%2==0):
@@ -2241,7 +2336,7 @@ class musicLine:
         s.update()
         del musicPaths[s.index]
         s.mainframe.destroy()
-        del musicWidgets[s.index]
+        del mpWidgets[s.index]
         if not(mass_remove):
             OSI.mpupdate()
 
@@ -2285,6 +2380,8 @@ for i in bindlist:
 
 # mp
 
+OSI.mppagehandler = pageHandler("mp",MP_PAGE_SIZE)
+
 OSI.mprefresh()
 
 # db
@@ -2315,7 +2412,5 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("set_draggable","Make window draggable with mouse",0,7,"bool"),
                 stWidget("git_email","Git Email",1,0,"list","git_emails")]
 
-OSI.gitGetEmail()
-getattention(root)
-eval(open("test.txt").readlines()[0])
+get_attention(root)
 root.mainloop()
