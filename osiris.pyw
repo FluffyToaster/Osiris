@@ -89,6 +89,7 @@ DB_DIR = "database/"
 DB_ENC_LEVEL = 3 # depth of Aegis AES-256 ecryption
 
 # dl settings
+DL_PAGE_SIZE = 13 # widgets on a page
 DL_ALTERNATIVES = 5 # number of alternatives to display when searching
 DL_CROP_THRESH = 50 # used when cropping YT thumbnails
 DL_YT_OPTIONS = {
@@ -323,6 +324,7 @@ class mainUI:
         s.state = "max"
 
         s.mpPage = 0
+        s.dlPage = 0
 
         # start of window definition and setup
         s.master = master
@@ -1149,9 +1151,21 @@ class mainUI:
 #################################### DOWNLOAD DEFS #####################################################################
     def dlinterpret(s,entry):
         s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
+
         if entry.startswith("d ") and is_int(entry.split()[1]): # if entry is delete command
             # del
             pass
+
+        elif entry.startswith("pg "):
+            if is_int(entry[3:]):
+                s.dlPage = int(int(entry[3:]) - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+
+        elif entry == "pgn":
+            s.dlPage = (s.dlPage + 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+
+        elif entry == "pgp":
+            s.dlPage = (s.dlPage - 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+
         elif entry == "dl":
             # go through all open widgets and tell them to ready
             for dl in dlWidgets:
@@ -1247,6 +1261,15 @@ class mainUI:
             search_results = s.gpsearch_track(entry)
             if search_results != False:
                 dlWidgets.append(gpTrack(search_results))
+
+        # decide which dlWidgets to show
+
+        for i in dlWidgets:
+            i.hide()
+
+        for i in range((s.dlPage) * DL_PAGE_SIZE, min(len(dlWidgets), ((s.dlPage + 1) * DL_PAGE_SIZE))):
+            dlWidgets[i].show()
+            print(i)
 
     def dl_delete(s, object):
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
@@ -1689,7 +1712,6 @@ class dlLine: # ABSTRACT
         s.wrapper = tk.Frame(OSI.dlframe,height=54)
         s.mainframe = tk.Frame(s.wrapper,bg=COLOR_BUTTON) # placeholder mainframe that is replaced by the generate function
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
-        s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
 
     def __str__(s):
         return "dbLine (INTERFACE!)"
@@ -1701,6 +1723,13 @@ class dlLine: # ABSTRACT
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
         try: s.multiframe.destroy()
         except: pass # no multiframe to destroy
+
+    def show(s):
+        s.wrapper.pack(side=TOP,pady=(10,0),padx=10,fill=X)
+
+    def hide(s):
+        if s.wrapper.winfo_ismapped():
+            s.wrapper.pack_forget()
 
     def set_color(s,color):
         if type(color) != str and len(color) == 3:
