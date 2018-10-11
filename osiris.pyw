@@ -82,6 +82,8 @@ COLOR_TEXT = "#D3D7DE"
 
 # mp settings
 MP_PAGE_SIZE = 32 # widgets rendered on a page
+if settings["set_foobarplaying"] == "True":
+    MP_PAGE_SIZE = 29
 ALLOWED_FILETYPES = [".mp3"] # could also allows ".flac",".m4a",".wav" but would increase time to refresh
 
 # db settings
@@ -313,9 +315,16 @@ def update(): # function that gets called every second to update assorted
         if foobarnow.startswith("not running"):
             OSI.mpfoobarplaypause.configure(text="Foobar not running")
         elif foobarnow.startswith("paused:"):
-            OSI.mpfoobarplaypause.configure(text="Paused")
+            if settings["hide_foobarplaying_on_pause"] == "True" and OSI.mpfoobarwrapper.winfo_ismapped():
+                OSI.mpfoobarwrapper.place_forget()
+            else:
+                OSI.mpfoobarplaypause.configure(text="Paused")
         else:
-            OSI.mpfoobarplaypause.configure(text="Playing")
+            if settings["hide_foobarplaying_on_pause"] == "True" and not OSI.mpfoobarwrapper.winfo_ismapped():
+                OSI.mpfoobarwrapper.place(x=1090, y=840,height=100,width=500)
+            else:
+                OSI.mpfoobarplaypause.configure(text="Playing")
+
         if foobarnow != foobarprev:
                 image = Image.open(("/".join(foobarnow.lstrip("playing: ").split("\\")[:-1]))+"/albumArt.png")
                 image = image.resize((100,100),Image.ANTIALIAS)
@@ -452,7 +461,8 @@ class MainUI:
             s.mpfoobar_album.place(x=105, y=60)
 
             s.mpfoobarplaypause = tk.Label(s.mpfoobarframe,text="",fg=COLOR_TEXT,font=FONT_S,width=10,anchor='e',bg=COLOR_BG_1)
-            s.mpfoobarplaypause.place(x=405,y=70)
+            if settings["hide_foobarplaying_on_pause"] == "False":
+                s.mpfoobarplaypause.place(x=405,y=70)
             s.mpfoobarframe.pack(side=TOP,pady=0,padx=0,fill=BOTH,expand=True)
 
         s.glbentry = tk.Entry(s.mainframe,font=FONT_L,bg=COLOR_BUTTON,fg=COLOR_TEXT,borderwidth=0,insertbackground=COLOR_TEXT)
@@ -474,9 +484,6 @@ class MainUI:
         s.dbtitlewrapper.pack(fill=X)
         s.dbeditor = tk.Text(s.dbeditorframe,height=TK_LOG_HEIGHT,font=FONT_M,bg=COLOR_BUTTON,bd=0,insertbackground=COLOR_TEXT,fg=COLOR_TEXT,wrap="word")
         s.dbeditor.pack(padx=10,pady=5, fill=BOTH)
-
-        # s.dbloadreq = tk.Label(s.dbframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=(FONT_M[0],"25"),text="ENTER TO LOAD DATABASE")
-        # s.dbloadreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
 
         s.dlframe = tk.Frame(s.contentframe,background=COLOR_BG_1)
         s.dlloginreq = tk.Label(s.dlframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=(FONT_M[0],"25"),text="LOGGING IN, PLEASE WAIT")
@@ -521,12 +528,15 @@ class MainUI:
 
         s.rootframe.pack()
 
+        s.backgroundimage = Image.open("etc/background2.png")
+        s.backgroundimage = s.backgroundimage.resize((1000,1000), Image.ANTIALIAS)
+        s.backgroundphoto = ImageTk.PhotoImage(s.backgroundimage)
+        s.backgrounds = []
+        for i in s.frames:
+            s.backgrounds.append(tk.Label(i, image=s.backgroundphoto, bg=COLOR_BG_1))
+            s.backgrounds[-1].place(x=-500,y=-500,relx=0.5,rely=0.5)
+            s.backgrounds[-1].lower()
         s.select("mp") # should be the last statement in this init
-        # for i in s.frames:
-        #     s.backgroundimage = Image.open("etc/background.png")
-        #     s.backgroundphoto = ImageTk.PhotoImage(s.backgroundimage)
-        #     s.background = tk.Label(i, image=s.backgroundphoto, bg=COLOR_BG_1)
-        #     s.background.place(x=-250,y=-250,relx=0.5,rely=0.5)
 
 # GENERAL DEFS
     def attemptMinimise(s):
@@ -2362,8 +2372,9 @@ OSI.StWidgets = [StWidget("searchdir","Music folder",0,0,"folder"),
                 StWidget("set_notitle","Use own title bar instead of windows",0,3,"bool"),
                 StWidget("set_pliduration","Show lengths of playlists in 'pli' menu",0,4,"bool"),
                 StWidget("set_update","Get updates from foobar",0,5,"bool"),
-                StWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
-                StWidget("set_draggable","Make window draggable with mouse",0,7,"bool")]
+                StWidget("set_draggable","Make window draggable with mouse",0,6,"bool"),
+                StWidget("set_foobarplaying","Show currently playing song",1,0,"bool"),
+                StWidget("hide_foobarplaying_on_pause","Hide current song if paused",1,1,"bool")]
 
 get_attention(root)
 root.mainloop()
