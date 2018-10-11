@@ -92,14 +92,8 @@ DB_ENC_LEVEL = 3 # depth of Aegis AES-256 ecryption
 DL_PAGE_SIZE = 13 # widgets on a page
 DL_ALTERNATIVES = 5 # number of alternatives to display when searching
 DL_CROP_THRESH = 50 # used when cropping YT thumbnails
-DL_YT_OPTIONS = {
-    'format': 'bestaudio/best',
-    'postprocessors': [{
-    'key': 'FFmpegExtractAudio',
-    'preferredcodec': 'mp3',
-    'preferredquality': '320',
-    }]
-}
+
+DL_POPEN_ARGS = ['youtube-dl','-f','bestaudio/best','-x','--audio-format','mp3','--audio-quality','320K']
 
 # setup
 if not os.path.exists(DB_DIR):
@@ -112,7 +106,6 @@ dbstate = ["browse",[],[],[]] # mode, showlist, pathlist, maplist
 dbkey = False
 dbWidgets = []
 dlWidgets = [] # list of instantiations of dlLine (or derived classes)
-wkWidgets = []
 
 # make gmusicapi shut up
 logging.disable(logging.CRITICAL)
@@ -354,10 +347,10 @@ class mainUI:
         s.mpbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="MUSIC",command=lambda:s.select("mp"))
         s.dbbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="DATABASE",command=lambda:s.select("db"))
         s.dlbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="DOWNLOAD",command=lambda:s.select("dl"))
-        s.wkbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="WORK",command=lambda:s.select("wk"))
+        s.sebutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="SERVER STATUS",command=lambda:s.select("se"))
         s.stbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="SETTINGS",command=lambda:s.select("st"))
         # list of buttons
-        s.buttonw = [s.mpbutton,s.dbbutton,s.dlbutton,s.wkbutton,s.stbutton]
+        s.buttonw = [s.mpbutton,s.dbbutton,s.dlbutton,s.sebutton,s.stbutton]
 
         for i in s.buttonw:
             i.pack(side=LEFT, fill=Y)
@@ -441,39 +434,8 @@ class mainUI:
         s.dlloginreq = tk.Label(s.dlframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=(FONT_M[0],"25"),text="LOGGING IN, PLEASE WAIT")
         s.dlloginreq.pack(side=TOP,fill=BOTH,expand=True,padx=10,pady=10)
 
-        s.wkframe = tk.Frame(s.contentframe,background=COLOR_BUTTON)
-        s.wkframe.grid_propagate(0)
-        for i in range(2): s.wkframe.grid_columnconfigure(i,minsize=int(TK_WIDTH/2)-TK_PADDING)
-        s.wkframe.grid_rowconfigure(0,minsize=int(TK_HEIGHT/2))
-        s.wktodos = tk.Frame(s.wkframe,bg=COLOR_BUTTON,width=TK_WIDTH-2*TK_PADDING)
-        s.wktodos.grid(column=0,row=0,columnspan=2,sticky="NESW",padx=2)
-        s.wktodos.grid_rowconfigure(1,minsize=int(TK_HEIGHT/2)-28)
-        for i in range(3): s.wktodos.grid_columnconfigure(i,minsize=int((TK_WIDTH-2*TK_PADDING)/3)-1)
-        s.wktodolbl1 = tk.Label(s.wktodos,font=FONT_M,text="TODO",fg=COLOR_TEXT,bg=COLOR_BUTTON)
-        s.wktodolbl1.grid(column=0,row=0,sticky="NESW",padx=(0,1))
-        s.wktodolbl2 = tk.Label(s.wktodos,font=FONT_M,text="IN PROGRESS",fg=COLOR_TEXT,bg=COLOR_BUTTON)
-        s.wktodolbl2.grid(column=1,row=0,sticky="NESW",padx=1)
-        s.wktodolbl3 = tk.Label(s.wktodos,font=FONT_M,text="DONE",fg=COLOR_TEXT,bg=COLOR_BUTTON)
-        s.wktodolbl3.grid(column=2,row=0,sticky="NESW",padx=(0,1))
-        s.wktodolist1 = tk.Frame(s.wktodos,bg=COLOR_BG_1)
-        s.wktodolist1.grid(column=0,row=1,sticky="NESW")
-        s.wktodolist2 = tk.Frame(s.wktodos,bg=COLOR_BG_1)
-        s.wktodolist2.grid(column=1,row=1,padx=2,sticky="NESW")
-        s.wktodolist3 = tk.Frame(s.wktodos,bg=COLOR_BG_1)
-        s.wktodolist3.grid(column=2,row=1,sticky="NESW")
-        s.wkadd1 = tk.Button(s.wktodolist1,text="+",width=2,font=FONT_S,bg=COLOR_BUTTON,fg=COLOR_TEXT,command=lambda: wkWidgets.append(wkLine("test1",0)))
-        s.wkadd2 = tk.Button(s.wktodolist2,text="+",width=2,font=FONT_S,bg=COLOR_BUTTON,fg=COLOR_TEXT,command=lambda: wkWidgets.append(wkLine("test2",1)))
-        s.wkadd3 = tk.Button(s.wktodolist3,text="+",width=2,font=FONT_S,bg=COLOR_BUTTON,fg=COLOR_TEXT,command=lambda: wkWidgets.append(wkLine("test3",2)))
-        for i in [s.wkadd1,s.wkadd2,s.wkadd3]:
-            i.pack(side=BOTTOM)
-        s.wkassoctextframe = tk.Frame(s.wkframe)
-        s.wkassoctextframe.grid(column=0,row=1)
-        s.wkassoctext = tk.Text(s.wkassoctextframe,font=FONT_M,width=60,bg=COLOR_BG_2,bd=0,insertbackground=COLOR_TEXT,fg=COLOR_TEXT,wrap="word")
-        s.wkassoctext.pack()
-        s.wkgentextframe = tk.Frame(s.wkframe)
-        s.wkgentextframe.grid(column=1,row=1)
-        s.wkgentext = tk.Text(s.wkgentextframe,font=FONT_M,width=60,bg=COLOR_BG_2,bd=0,insertbackground=COLOR_TEXT,fg=COLOR_TEXT,wrap="word")
-        s.wkgentext.pack()
+        s.seframe = tk.Frame(s.contentframe,background=COLOR_BUTTON)
+        s.seframe.grid_propagate(0)
 
         s.stframe = tk.Frame(s.contentframe,background=COLOR_BG_1)
         # key,label,col,row,type
@@ -498,9 +460,9 @@ class mainUI:
         # list of modes for convenience
 
         # lists of things
-        s.modes = ["mp","db","dl","wk","st"]
-        s.frames = [s.mpframe,s.dbframe,s.dlframe,s.wkframe,s.stframe]
-        s.interpreters = [s.mpinterpret,s.dbinterpret,s.dlinterpret,s.wkinterpret,s.stinterpret]
+        s.modes = ["mp","db","dl","se","st"]
+        s.frames = [s.mpframe,s.dbframe,s.dlframe,s.seframe,s.stframe]
+        s.interpreters = [s.mpinterpret,s.dbinterpret,s.dlinterpret,s.seinterpret,s.stinterpret]
 
         s.focuslist = [s.dbeditor,s.glbentry]
         # commence the pre-op
@@ -800,7 +762,7 @@ class mainUI:
                 i.mainframe.destroy()
             mpWidgets = []
         else:
-            for i in [x for x in s.oldpaths if x not in s.newpaths]:
+            for i in [x for x in s.oldpaths if x not in s.newpaths]
                 mpWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
                 OSI.mpupdate()
 
@@ -825,7 +787,7 @@ class mainUI:
     def mpplay(s,songlist): # function to play a list of .mp3 files with foobar
         #mpcount(songlist)
         s.log("OSI: Playing " + str(len(songlist)) + " song(s)")
-        subprocess.Popen([settings["foobarexe"]]+[i for i in songlist])
+        subprocess.Popen([settings["foobarexe"]]+[i for i in songlist], shell=False)
 
     def mpplgen(s): # generate the playlist info widget
         # define surrounding layout (regardless of playlists)
@@ -1277,10 +1239,6 @@ class mainUI:
     def dl_delete(s, object):
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
 
-    def ytbackgroundprep(s):
-        global YoutubeDL
-        from youtube_dl import YoutubeDL
-
     def gpbackgroundlogin(s):
         global Mobileclient, Webclient
         from gmusicapi import Mobileclient, Webclient
@@ -1453,7 +1411,7 @@ class mainUI:
 
     #################################### WORK DEFS #####################################################################
 
-    def wkinterpret(s,entry):
+    def seinterpret(s,entry):
         s.log("Under construction")
 
 
@@ -1485,16 +1443,6 @@ class mainUI:
             next = options[0]
         settings[key] = next
         s.updateSettings()
-
-    def gitGetEmail(s): # update settings according to git email
-        pipe = subprocess.Popen("git config user.email", shell=True, stdout=subprocess.PIPE).stdout
-        output = str(pipe.read(), "utf-8").rstrip("\n\r")
-        settings["git_email"] = output
-        s.updateSettings()
-
-    def gitSetEmail(s): # update git email according to settings
-        subprocess.Popen("git config --global user.email "+settings["git_email"])
-        s.updateSettings
 
     def updateSettings(s):
         for i in s.stWidgets: i.update()
@@ -1541,7 +1489,7 @@ class pageHandler:
 
 class dlManager:
     def __init__(s):
-        s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=30, width=TK_PROGRESS_BAR_WIDTH)
+        s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=35, width=TK_PROGRESS_BAR_WIDTH)
         s.mainframe.pack_propagate(0)
         s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=COLOR_BG_1)
         s.progress_bar_wrapper.place(width=TK_PROGRESS_BAR_WIDTH, height=3)
@@ -1618,27 +1566,28 @@ class dlManager:
 
     def process_downloads(s): # function that updates the downloading process
         # process the top of the gp queue
-        if s.idle:
+        if s.idle and len(s.gptracks) + len(s.yttracks) > 0:
             if len(s.gptracks) > 0:
                 threading.Thread(target=lambda: s.gp_download(s.gptracks.pop(0))).start()
             elif len(s.yttracks) > 0:
                 threading.Thread(target=lambda: s.yt_download(s.yttracks.pop(0))).start()
+
         # decide if we need to keep downloading
         if len(s.gptracks) + len(s.yttracks) > 0:
             root.after(50,s.process_downloads) # continue the loop
-        elif s.idle:
+        elif s.idle and s.count_convtotal == 0:
             s.count_gpcomplete = 0
             s.count_gptotal = 0
             s.count_ytcomplete = 0
             s.count_yttotal = 0
             s.state = "waiting"
             root.after(200,lambda: OSI.mprefresh())
-        else:
+            OSI.log("OSI: All downloads finished")
+        else: # if idle but converting: wait a bit longer
             root.after(100,s.process_downloads)
         s.refreshvalues()
 
     def yt_download(s, track): # download from youtube data to filename
-
         s.idle = False
         s.count_ytcomplete += 1
         s.refreshvalues()
@@ -1647,24 +1596,15 @@ class dlManager:
         name = settings["dldir"]+"/YouTube/"+track[1]+"/"+track[0]+".mp3"
         os.makedirs(os.path.dirname(name), exist_ok=True)
         if not(os.path.isfile(name)):
-            with YoutubeDL(DL_YT_OPTIONS) as ydl:
-                s.idle_watchdog(url)
-                ydl.download([url])
-                for i in os.listdir():
-                    if i.endswith(".mp3") and url in i:
-                        os.rename(i,name)
+            s.idle_conv_watchdog(url, name, track)
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            subprocess.Popen(DL_POPEN_ARGS+[url], startupinfo=startupinfo)
         else:
             OSI.log("OSI: YT DL skipped")
             s.idle = True
             s.refreshvalues()
             return
-        imagepath = "/".join(name.split("/")[:-1])+"/"+url+".png"
-        s.generate_image_data([track]).save(imagepath)
-        OSI.dlalbumartify(name, imagepath)
-        file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
-        OSI.gptagify(name, file_data)
-        s.count_convtotal -= 1
-        s.refreshvalues()
 
     def generate_image_data(s, tracklist, _index=None):
         if _index != None:
@@ -1683,14 +1623,25 @@ class dlManager:
         else:
             return background.copy()
 
-    def idle_watchdog(s, id): # looks for the signs that a song has started converting
+    def idle_conv_watchdog(s, id, name, track, recursing = False): # keeps UI up to date and renames file when done
         for i in os.listdir():
-            if i.endswith(id+".mp3") and os.path.getsize(i) < 100: # found a match
-                s.idle = True
-                s.count_convtotal += 1
-                return
+            if i.endswith(id+".mp3"):
+                if os.path.getsize(i) < 100 and not recursing: # found a match
+                    s.idle = True
+                    s.count_convtotal += 1
+                    recursing = True
+                elif os.path.getsize(i) > 10 and not i[:-3]+"webm" in os.listdir():
+                    os.rename(i,name)
+                    imagepath = "/".join(name.split("/")[:-1])+"/"+id+".png"
+                    s.generate_image_data([track]).save(imagepath)
+                    OSI.dlalbumartify(name, imagepath)
+                    file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
+                    OSI.gptagify(name, file_data)
+                    s.count_convtotal -= 1
+                    s.refreshvalues()
+                    return
         s.refreshvalues()
-        root.after(100, lambda: s.idle_watchdog(id)) # else, keep looking
+        root.after(100, lambda: s.idle_conv_watchdog(id, name, track, recursing)) # else, keep looking
 
     def get_correct_channel_name(s, track):
         trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+track[3]+"&key="+settings["yt_api_key"])
@@ -2141,7 +2092,10 @@ class stWidget:
             s.switchbutton = tk.Button(s.mainframe,text=settings[key], bg=COLOR_BUTTON,width=10,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.switchSetting(key))
             s.switchbutton.grid(column=1,row=0)
         elif type == "list":
-            s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: [OSI.cycleSetting(key,altkey), OSI.gitSetEmail()])
+            s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=None)
+            s.nextbutton.configure(command=lambda: [OSI.cycleSetting(key,altkey)])
+            # list should include a method that does something with the setting
+            # some setter, for example
             s.nextbutton.grid(column=1,row=0, rowspan=2,sticky="NESW")
 
         s.mainframe.grid(column=col,row=row,pady=8,padx=8)
@@ -2151,53 +2105,6 @@ class stWidget:
             s.curlabel.configure(text=settings[s.key])
         else:
             s.switchbutton.configure(text=settings[s.key])
-
-class wkLine:
-    def __init__(s,text,status,assoc=""):
-        s.text = text
-        s.status = status
-        s.assoc = assoc
-        s.id = random()
-        if status == 0:
-            s.mainframe = tk.Frame(OSI.wktodolist1)
-        if status == 1:
-            s.mainframe = tk.Frame(OSI.wktodolist2)
-        if status == 2:
-            s.mainframe = tk.Frame(OSI.wktodolist3)
-        s.mainframe.pack_propagate(0)
-        s.mainframe.configure(bg=COLOR_BG_2,height=25,width=int((TK_WIDTH-2*TK_PADDING)/3)-4)
-        s.leftbutton = tk.Button(s.mainframe,font=FONT_S)
-        s.leftbutton.pack(side=LEFT)
-        s.txtlbl = tk.Label(s.mainframe,bg=COLOR_BG_2,text=s.text,font=FONT_S)
-        s.txtlbl.pack(side=LEFT)
-        s.rightbutton = tk.Button(s.mainframe,font=FONT_S)
-        s.rightbutton.pack(side=RIGHT)
-        s.mainframe.pack(side=TOP)
-        s.setpos(status)
-    def getID(s):
-        return s.id
-    def setassoc(s):
-        OSI.wkassoctext.delete("0.0",END)
-        OSI.wkassoctext.insert("0.0",assoc)
-    def changepos(s,pos):
-        newline = wkLine(s.text,pos,s.assoc)
-        wkWidgets.append(newline)
-        s.remove()
-    def remove(s):
-        s.mainframe.destroy()
-        del wkWidgets[[x.getID() for x in wkWidgets].index(s.id)]
-    def setpos(s,pos):
-        if pos == 0:
-            s.leftbutton.configure(text="X",command=lambda:s.remove())
-            s.rightbutton.configure(text=">",command=lambda:s.changepos(1))
-        if pos == 1:
-            s.leftbutton.configure(text="<",command=lambda:s.changepos(0))
-            s.rightbutton.configure(text=">",command=lambda:s.changepos(2))
-        if pos == 2:
-            s.leftbutton.configure(text="<",command=lambda:s.changepos(1))
-            s.rightbutton.configure(text="X",command=lambda:s.remove())
-
-
 
 
 class dbLine: # !!! move to below music classes when done
@@ -2347,9 +2254,6 @@ OSI = mainUI(root)
 DLMAN = dlManager()
 OSI.greet()
 
-for i in range(3):
-    wkWidgets.append(wkLine("herro "+str(i),1))
-
 # root operations first
 
 if settings["set_notitle"]=="True":
@@ -2399,7 +2303,6 @@ webapi = None
 gplogin = False
 gppass = settings["gppass"]
 threading.Thread(target=OSI.gpbackgroundlogin).start()
-threading.Thread(target=OSI.ytbackgroundprep).start()
 
 # settings
 OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
@@ -2409,8 +2312,7 @@ OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
                 stWidget("set_pliduration","Show lengths of playlists in 'pli' menu",0,4,"bool"),
                 stWidget("set_update","Get updates from foobar",0,5,"bool"),
                 stWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
-                stWidget("set_draggable","Make window draggable with mouse",0,7,"bool"),
-                stWidget("git_email","Git Email",1,0,"list","git_emails")]
+                stWidget("set_draggable","Make window draggable with mouse",0,7,"bool")]
 
 get_attention(root)
 root.mainloop()
