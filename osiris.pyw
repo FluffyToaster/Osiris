@@ -36,7 +36,7 @@ from Crypto.Cipher import AES
 # establishing location and settings
 rootdir = os.path.dirname(os.path.realpath(__file__))+"/"
 os.chdir(rootdir)
-def importSettings(path="etc/settings.txt"):
+def import_settings(path="etc/settings.txt"):
     global settings
     settings = {}
     settingsfile = open(path,"r")
@@ -46,13 +46,13 @@ def importSettings(path="etc/settings.txt"):
         settings[key] = value
     settingsfile.close()
 
-def exportSettings(path="etc/settings.txt"):
+def export_settings(path="etc/settings.txt"):
     settingsfile = open(path,"w")
     for key,value in settings.items():
         settingsfile.write(key+" = "+value+"\n")
     settingsfile.close()
 
-importSettings()
+import_settings()
 
 # LOCAL SETTINGS
 # tkinter settings
@@ -61,6 +61,7 @@ FONT_M = ("Roboto Mono", "10")
 FONT_L = ("Roboto Mono", "11")
 FONT_ITALIC = ("Roboto Mono", "10", "italic")
 FONT_BOLD = ("Roboto Mono", "11", "bold")
+FONT_BOLD_M = ("Roboto Mono", "10", "bold")
 if settings["large_taskbar"] == "False":
     TK_HEIGHT = 1042
 else:
@@ -72,16 +73,15 @@ TK_BUTTON_WIDTH = 25
 TK_PROGRESS_BAR_WIDTH = 1594 # bit arbitrary but should not change in a 1920 width window
 
 # tkinter A E S T H E T I C
-COLOR_BG_1 = "#2e3338" #"#282C30"
+COLOR_BG_1 = "#2e3338" # color of general background
 COLOR_BG_2 = "#394046" # secondary music selection color
 COLOR_BG_3 = "#454d54" # music selection button color
-
 COLOR_BUTTON = "#14161A"
 COLOR_BUTTON_ACTIVE = COLOR_BG_1
 COLOR_TEXT = "#D3D7DE"
 
 # mp settings
-MP_PAGE_SIZE = 32 # widgets on a page
+MP_PAGE_SIZE = 32 # widgets rendered on a page
 ALLOWED_FILETYPES = [".mp3"] # could also allows ".flac",".m4a",".wav" but would increase time to refresh
 
 # db settings
@@ -93,25 +93,36 @@ DL_PAGE_SIZE = 13 # widgets on a page
 DL_ALTERNATIVES = 5 # number of alternatives to display when searching
 DL_CROP_THRESH = 50 # used when cropping YT thumbnails
 
-DL_POPEN_ARGS = ['youtube-dl','-f','bestaudio/best','-x','--audio-format','mp3','--audio-quality','320K']
+# arguments for subprocess Popen call when downloading from YT
+DL_POPEN_ARGS = ['youtube-dl',
+                 '-f','bestaudio/best',
+                 '-x',
+                 '--audio-format','mp3',
+                 '--audio-quality','320K']
 
 # setup
+mousex, mousey = 0,0 # initialise mouse locations
+
+ # create the database root directory
 if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
+
+# global lists for (non)-rendered widgets per tab
 mpWidgets = []
-musicPaths = []
-allfiles = []
-dbloc = DB_DIR
-dbstate = ["browse",[],[],[]] # mode, showlist, pathlist, maplist
-dbkey = False
 dbWidgets = []
-dlWidgets = [] # list of instantiations of dlLine (or derived classes)
+dlWidgets = []
+
+musicPaths = [] # currently selected songs
+allfiles = [] # all known songs
+
+dbloc = DB_DIR # location for database browser
+dbstate = ["browse",[],[],[]] # mode, showlist, pathlist, maplist
+dbkey = False # currently entered Aegis key
 
 # make gmusicapi shut up
 logging.disable(logging.CRITICAL)
 
-# Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn
-# seriously, I don't even know, just don't touch
+# disgusting windows fuckery to make top bar disappear
 GWL_EXSTYLE=-20
 WS_EX_APPWINDOW=0x00040000
 WS_EX_TOOLWINDOW=0x00000080
@@ -123,7 +134,12 @@ def set_appwindow(root): # let the window have a taskbar icon
     res = windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
     root.wm_withdraw()
     root.after(10, lambda: root.wm_deiconify())
+# end of windows fuckery
 
+
+# TOPLEVEL UTILITY FUNCTIONS
+
+# lift the root above other windows and focus on the entry field
 def get_attention(root):
     root.lift()
     root.attributes("-topmost", True)
@@ -132,21 +148,25 @@ def get_attention(root):
     root.after(200,lambda: root.focus_force())
     root.after(300,lambda: OSI.glbentry.focus())
 
-mousex, mousey = 0,0
+# adjust recorded mouse location according to event
 def def_delta(event):
     global mousex, mousey
     mousex = event.x
     mousey = event.y
 
+# move the window with the mouse
 def move_window(event):
     if settings["set_draggable"] == "True":
         root.geometry("+"+str(event.x_root-mousex)+"+"+str(event.y_root-mousey))
 
-# TOPLEVEL UTILITY DEFS
+# often-used search function: uses the given criteria to filter the total list
+# param find - a string, built from ';'-separated filter commands
+# param total - an array of strings, each string is evaluated separately
 def search(find,total):
-    find = find.split(";") # ["foo bar", "tra la"]
+    # find can be read as written in DNF, with the OR's as ';'
+    find = find.split(";")
     results = []
-    for term in find: # term = "foo bar", "tra la"
+    for term in find: # each term is evaluated over the total
         term = term.split()
         remlist = []
         for single in term:
@@ -154,7 +174,7 @@ def search(find,total):
                 remlist.append(single[1:])
         for full in total: # loops through every entry in the total list
             match = True
-            for single in term: # single = "foo"
+            for single in term:
                 if not single.startswith("-"):
                     if single.lower() not in full.lower(): match = False
             if match:
@@ -164,7 +184,8 @@ def search(find,total):
                     results.append(full)
     return results
 
-def matchcrit(crit, searchlist): # interprets search criteria
+# interpret search criteria and returns matches
+def match_criteria(crit, searchlist):
     match = [] #list of all files that match criteria given
     for i in crit.split(";"):
         if len(i.split("-"))==2:
@@ -180,30 +201,35 @@ def matchcrit(crit, searchlist): # interprets search criteria
             match += search(i,searchlist)
     return match
 
-def is_int(val): # checks whether a value can be converted to an integer
+# check whether a value can be converted to an integer
+def is_int(val):
     try:
         int(val)
         return True
     except:
         return False
 
-def dupl_rem(duplist): # function to remove duplicate values from a list
+# remove duplicate values from a list
+def remove_duplicates(duplist):
     seen = set()
     seen_add = seen.add
     return [x for x in duplist if not (x in seen or seen_add(x))]
 
-def filterchars(string_in,chars):
+# filter characters from a string
+def filter_chars(string_in,chars):
     out = "".join(list(filter(lambda x: x not in chars, list(string_in))))
     return out
 
-def escape(string): # escape backslashes
+# escape backslashes
+def escape(string):
     val = repr(string)
     for i in range(4):
         val = val.replace([r"\x0",r"\n",r"\l",r"\t"][i],
                           [r"\\0",r"\\n",r"\\l",r"\\t"][i])
     return val.strip("'")
 
-def _filter(orig_string, make_safe_for_filename = True): # handle unsafe strings
+# handle unsafe strings, make them UTF-8 compliant
+def filter_(orig_string, make_safe_for_filename = True):
     temp = orig_string[:]
     if make_safe_for_filename:
         changelist = '*/\\":?<>|'
@@ -212,7 +238,8 @@ def _filter(orig_string, make_safe_for_filename = True): # handle unsafe strings
 
     return bytes(temp, 'utf-8').decode('utf-8','replace')
 
-def colorFromImage(image, avoid_dark = False):
+# get the most frequent color from an image
+def color_from_image(image, avoid_dark = False):
     colors = image.getcolors(image.size[0]*image.size[1])
     max_occurence, most_present = 0, 0
     for c in colors:
@@ -220,51 +247,56 @@ def colorFromImage(image, avoid_dark = False):
             (max_occurence, most_present) = c
     return most_present
 
+# parse an RGB tuple into a Hex color string
 def RGBToHex(rgb):
     return ("#"+('00'+str(hex(rgb[0]))[2:])[-2:]+('00'+str(hex(rgb[1]))[2:])[-2:]+('00'+str(hex(rgb[2]))[2:])[-2:])
 
+
 # TOPLEVEL TEXT INTERACTION DEFS
-def selectFile(filepath=settings["datapath"]): # function used by all 'text' functions to get the content of osData.txt, also applicable for other .txt files
+# get the content of osData.txt, also applicable for other .txt files
+def select_file(filepath=settings["datapath"]):
     with open(filepath,"r",encoding="utf-8") as selectedFile:
         data = [x.strip('\n') for x in selectedFile.readlines()]
     return data
 
-def writeToText(writeList,section): # replaces the current content of section with that of writeList, creates section if there is none
-    data = selectFile()
+# replace the current content of section with that of writelist, creates section if there is none
+def write_to_text(writelist,section):
+    data = select_file()
     try:
-        dataStartIndex = data.index("="+section+"=")+1
-        dataEndIndex = data.index("=/"+section+"=")
+        start = data.index("="+section+"=")+1
+        end = data.index("=/"+section+"=")
     except:
         data += ["="+section+"="] + "\n" + ["=/"+section+"="]
-        dataStartIndex = data.index("="+section+"=")+1
-        dataEndIndex = data.index("=/"+section+"=")
-    data[dataStartIndex:dataEndIndex] = []
-    for i in writeList[::-1]:
-        data.insert(dataStartIndex,i)
-    dataWriteFile = open(settings["datapath"],"w",encoding="utf-8")
+        start = data.index("="+section+"=")+1
+        end = data.index("=/"+section+"=")
+    data[start:end] = []
+    for i in writelist[::-1]:
+        data.insert(start,i)
+    write_file = open(settings["datapath"],"w",encoding="utf-8")
     for i in data:
-        dataWriteFile.write(i+"\n")
-    dataWriteFile.close()
+        write_file.write(i+"\n")
+    write_file.close()
 
-def readFromText(section): # gets the content of a section
-    data = selectFile()
+# gets the content of a section
+def read_from_text(section):
+    data = select_file()
     try:
-        dataStartIndex = data.index("="+section+"=")+1
-        dataEndIndex = data.index("=/"+section+"=")
+        start = data.index("="+section+"=")+1
+        end = data.index("=/"+section+"=")
     except: return False
-    return(data[dataStartIndex:dataEndIndex])
+    return(data[start:end])
 
-def delText(section): # deletes a section
-    data = selectFile()
+def del_text(section): # deletes a section
+    data = select_file()
     try: data[(data.index("="+section+"=")):(data.index("=/"+section+"=")+1)] = []
     except: return False
-    dataWriteFile = open(settings["datapath"],"w",encoding="utf-8")
-    for i in data: dataWriteFile.write(i+"\n")
-    dataWriteFile.close()
+    write_file = open(settings["datapath"],"w",encoding="utf-8")
+    for i in data: write_file.write(i+"\n")
+    write_file.close()
     return True
 
-def searchText(section): # returns the names of all matching sections
-    data = selectFile()
+def search_text(section): # returns the names of all matching sections
+    data = select_file()
     result = search(str("="+section),data)
     if result != False:
         for i in range(len(result)): result[i] = result[i][1:-1]
@@ -277,7 +309,7 @@ def update(): # function that gets called every second to update assorted
         global foobarprev
         global photo
         # foobar currently playing widget
-        foobarnow = [open("foobar_nowplaying.txt","r").readlines()][0][0].rstrip("\n")[3:]
+        foobarnow = [open("etc/foobar_nowplaying.txt","r").readlines()][0][0].rstrip("\n")[3:]
         if foobarnow.startswith("not running"):
             OSI.mpfoobarplaypause.configure(text="Foobar not running")
         elif foobarnow.startswith("paused:"):
@@ -290,25 +322,32 @@ def update(): # function that gets called every second to update assorted
                 photo = ImageTk.PhotoImage(image)
                 OSI.mpfoobaralbart.configure(image=photo)
 
-                colors = image.getcolors(2500)
-                max_occurence, most_present = 0, 0
-                for c in colors:
-                    if c[0] > max_occurence:
-                        (max_occurence, most_present) = c
+                maincolor = color_from_image(image)
 
-                bordercolor = ("#"+('00'+str(hex(most_present[0]))[2:])[-2:]+('00'+str(hex(most_present[1]))[2:])[-2:]+('00'+str(hex(most_present[2]))[2:])[-2:])
-                s.mpfoobarwrapper.configure(bg=bordercolor)
+                if (max(maincolor) + min(maincolor)) / 2 >= 127:
+                    contrast = "#000000"
+                else:
+                    contrast = COLOR_TEXT
 
-                temp = foobarnow.lstrip("playing: ").split("\\")
-                OSI.mpfoobartext.configure(text="Song:   "+temp[-1][3:-4]+"\nArtist: "+temp[-3]+"\nAlbum:  "+temp[-2])
+                bordercolor = RGBToHex(maincolor)
+                OSI.mpfoobarwrapper.configure(bg=bordercolor)
+
+                temp = foobarnow[len("playing: "):].split("\\")
+                OSI.mpfoobarframe.configure(bg=bordercolor)
+                OSI.mpfoobar_song.configure(text=temp[-1][3:-4], bg=bordercolor, fg=contrast)
+                OSI.mpfoobar_artist.configure(text=temp[-3], bg=bordercolor, fg=contrast)
+                OSI.mpfoobar_album.configure(text=temp[-2], bg=bordercolor, fg=contrast)
+                OSI.mpfoobarplaypause.configure(bg=bordercolor, fg=contrast)
+                # OSI.mpfoobartext.configure(text="Song:   "+temp[-1][3:-4]+"\nArtist: "+temp[-3]+"\nAlbum:  "+temp[-2])
                 foobarprev = foobarnow[:]
         root.after(1000,update)
-    except:
+    except Exception as e:
+        print(e)
         root.after(1000,update)
 
 
 # MAIN WINDOW DEFINITION
-class mainUI:
+class MainUI:
     def __init__(s,master):
         # some pre-op (can be anywhere in this init)
         s.pliactive = False
@@ -316,8 +355,8 @@ class mainUI:
         s.entrypos = 0
         s.state = "max"
 
-        s.mpPage = 0
-        s.dlPage = 0
+        s.mp_page = 0
+        s.dl_page = 0
 
         # start of window definition and setup
         s.master = master
@@ -331,8 +370,6 @@ class mainUI:
         s.buttonframe = tk.Frame(s.mainframe,bg=COLOR_BUTTON,height=38)
         s.buttonframe.pack_propagate(0)
 
-
-
         # adding logo
         s.logoframe = tk.Frame(s.buttonframe, height=38, width=80,bg=COLOR_BUTTON)
         s.logoframe.pack_propagate(0)
@@ -344,17 +381,21 @@ class mainUI:
         s.logolabel.pack(padx=10,pady=4)
         s.logoframe.pack(side=LEFT)
 
+        # creating navbar buttons
         s.mpbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="MUSIC",command=lambda:s.select("mp"))
         s.dbbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="DATABASE",command=lambda:s.select("db"))
         s.dlbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="DOWNLOAD",command=lambda:s.select("dl"))
         s.sebutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="SERVER STATUS",command=lambda:s.select("se"))
         s.stbutton = tk.Button(s.buttonframe,borderwidth=0,activebackground=COLOR_BUTTON_ACTIVE,activeforeground=COLOR_TEXT,font=FONT_L,width=TK_BUTTON_WIDTH,text="SETTINGS",command=lambda:s.select("st"))
-        # list of buttons
-        s.buttonw = [s.mpbutton,s.dbbutton,s.dlbutton,s.sebutton,s.stbutton]
 
-        for i in s.buttonw:
+        # list of buttons
+        s.buttons = [s.mpbutton,s.dbbutton,s.dlbutton,s.sebutton,s.stbutton]
+
+        # pack all buttons
+        for i in s.buttons:
             i.pack(side=LEFT, fill=Y)
 
+        # generate window controls if the user opted to omit the Windows navbar
         if settings["set_notitle"]=="True":
             s.exitbutton = tk.Button(s.buttonframe,borderwidth=0,bg=COLOR_BUTTON,activebackground="#c41313",fg=COLOR_TEXT,activeforeground="white",font=FONT_BOLD,width=4,text=" X ",command=root.destroy)
             s.exitbutton.bind("<Enter>", lambda x: s.exitbutton.configure(bg="#c41313"))
@@ -383,7 +424,6 @@ class mainUI:
 
         s.contentframe = tk.Frame(s.scrollcanvas,bg=COLOR_BG_1)
 
-        # s.contentframe.pack_propagate(0)
         if settings["set_scrollable"]=="False":
             s.contentframe.pack(fill=BOTH,expand=True)
 
@@ -395,17 +435,25 @@ class mainUI:
 
         s.mpframe = tk.Frame(s.contentframe,bg=COLOR_BG_1)
 
+        # generate display for currently playing song
         if settings["set_foobarplaying"]=="True":
             s.mpfoobarwrapper = tk.Frame(s.mpframe,bg=COLOR_BUTTON)
-            s.mpfoobarwrapper.place(y=450,height=100,width=400)
+            s.mpfoobarwrapper.place(x=1090, y=840,height=100,width=500)
+
             s.mpfoobarframe = tk.Frame(s.mpfoobarwrapper,bg=COLOR_BG_1)
             s.mpfoobaralbart = tk.Label(s.mpfoobarframe,bg=COLOR_BG_1)
             s.mpfoobaralbart.place(height=100,width=100)
-            s.mpfoobartext = tk.Label(s.mpfoobarframe,text="",fg=COLOR_TEXT,bg=COLOR_BG_1)
-            s.mpfoobartext.place(x=105)
-            s.mpfoobarplaypause = tk.Label(s.mpfoobarframe,text="",fg=COLOR_TEXT,bg=COLOR_BG_1)
-            s.mpfoobarplaypause.place(x=340,y=70)
-            s.mpfoobarframe.pack(side=TOP,pady=2,padx=2,fill=BOTH,expand=True)
+
+            s.mpfoobar_song = tk.Label(s.mpfoobarframe,text="", width=35,anchor='w',font=FONT_BOLD_M,fg=COLOR_TEXT,bg=COLOR_BG_1)
+            s.mpfoobar_song.place(x=105)
+            s.mpfoobar_artist = tk.Label(s.mpfoobarframe,text="", width=35,anchor='w',font=FONT_ITALIC,fg=COLOR_TEXT,bg=COLOR_BG_1)
+            s.mpfoobar_artist.place(x=105, y=30)
+            s.mpfoobar_album = tk.Label(s.mpfoobarframe,text="", width=35,anchor='w',font=FONT_ITALIC,fg=COLOR_TEXT,bg=COLOR_BG_1)
+            s.mpfoobar_album.place(x=105, y=60)
+
+            s.mpfoobarplaypause = tk.Label(s.mpfoobarframe,text="",fg=COLOR_TEXT,font=FONT_S,width=10,anchor='e',bg=COLOR_BG_1)
+            s.mpfoobarplaypause.place(x=405,y=70)
+            s.mpfoobarframe.pack(side=TOP,pady=0,padx=0,fill=BOTH,expand=True)
 
         s.glbentry = tk.Entry(s.mainframe,font=FONT_L,bg=COLOR_BUTTON,fg=COLOR_TEXT,borderwidth=0,insertbackground=COLOR_TEXT)
         s.glbentry.bind("<Return>",lambda x:s.visentry(s.glbentry.get()))
@@ -541,12 +589,12 @@ class mainUI:
 
     def select(s,choice):
         for i in s.frames: i.pack_forget()
-        for i in s.buttonw: i.configure(relief=RAISED,bg=COLOR_BUTTON,fg=COLOR_TEXT)
+        for i in s.buttons: i.configure(relief=RAISED,bg=COLOR_BUTTON,fg=COLOR_TEXT)
 
         # selecting the mode to switch to and applying appropriate widget changes
         s.modeindex = s.modes.index(choice)
 
-        s.buttonw[s.modeindex].configure(relief=SUNKEN,bg=COLOR_BUTTON_ACTIVE,fg=COLOR_TEXT)
+        s.buttons[s.modeindex].configure(relief=SUNKEN,bg=COLOR_BUTTON_ACTIVE,fg=COLOR_TEXT)
         s.frames[s.modeindex].pack(fill=BOTH,expand=True,pady=TK_PADDING,padx=TK_PADDING)
         s.mode = choice
 
@@ -570,18 +618,18 @@ class mainUI:
                 flag = cur.split()[0]
                 comm = " ".join(cur.split()[1:])
                 if flag == "s":
-                    msg = "Select " + str(len(matchcrit(comm,allfiles))) + " song(s)"
+                    msg = "Select " + str(len(match_criteria(comm,allfiles))) + " song(s)"
                 if flag == "p":
                     if musicPaths == []:
-                        msg = "Play " + str(len(matchcrit(comm,allfiles))) + " song(s)"
+                        msg = "Play " + str(len(match_criteria(comm,allfiles))) + " song(s)"
                     else:
-                        msg = "Play " + str(len(matchcrit(comm,musicPaths))) + " song(s)"
+                        msg = "Play " + str(len(match_criteria(comm,musicPaths))) + " song(s)"
                 if flag == "r":
-                    msg = "Refine to " + str(len(matchcrit(comm,musicPaths))) + " song(s)"
+                    msg = "Refine to " + str(len(match_criteria(comm,musicPaths))) + " song(s)"
                 if flag == "d":
-                    msg = "Remove " + str(len(matchcrit(comm,musicPaths))) + " song(s)"
+                    msg = "Remove " + str(len(match_criteria(comm,musicPaths))) + " song(s)"
                 if flag == "bin":
-                    msg = "Send " + str(len(matchcrit(comm,musicPaths))) + " song(s) to trash"
+                    msg = "Send " + str(len(match_criteria(comm,musicPaths))) + " song(s) to trash"
                 if flag == "gp":
                     if is_int(comm):
                         msg = "Select " + comm + " recent song(s)"
@@ -589,20 +637,20 @@ class mainUI:
                         if comm.rstrip(" ") != "":
                             msg = "Is '"+comm+"' a number, dick?"
                 if flag == "pl":
-                    if readFromText("mp pl "+comm) != False:
-                        msg = "Play " + str(len(readFromText("mp pl "+comm))) + " songs"
+                    if read_from_text("mp pl "+comm) != False:
+                        msg = "Play " + str(len(read_from_text("mp pl "+comm))) + " songs"
                     else:
                         msg = "Unknown pl (try 'pli')"
                 if flag == "pll":
-                    if readFromText("mp pl "+comm)  != False:
-                        msg = "Load " + str(len(readFromText("mp pl "+comm))) + " songs"
+                    if read_from_text("mp pl "+comm)  != False:
+                        msg = "Load " + str(len(read_from_text("mp pl "+comm))) + " songs"
                     else:
                         msg = "Unknown pl (try 'pli')"
             else:
                 if musicPaths == []:
-                    msg = "Play " + str(len(matchcrit(cur,allfiles))) + " song(s)"
+                    msg = "Play " + str(len(match_criteria(cur,allfiles))) + " song(s)"
                 else:
-                    msg = "Play " + str(len(matchcrit(cur,musicPaths))) + " song(s)"
+                    msg = "Play " + str(len(match_criteria(cur,musicPaths))) + " song(s)"
         elif s.mode == "gp":
             if cur == "dl":
                 msg = "Download this selection"
@@ -634,12 +682,12 @@ class mainUI:
         for ftype in ALLOWED_FILETYPES:
             diskdata.extend(glob.glob(settings["searchdir"]+"**/*"+ftype, recursive = True))
 
-        writeToText(diskdata,"mp allfiles")
+        write_to_text(diskdata,"mp allfiles")
         s.mpfilesget()
 
     def mpfilesget(s): # updates allfiles and mp playcount using osData.txt
         global allfiles
-        result = readFromText("mp allfiles")
+        result = read_from_text("mp allfiles")
         if result != False:
             allfiles = result
         else:
@@ -658,29 +706,29 @@ class mainUI:
         # start by finding what the new desired paths are
         # also run code that doesn't influence paths, eg: playing, refreshing, saving
         if s.cflag == "s":
-            s.newpaths = dupl_rem(s.oldpaths+matchcrit(s.UI,allfiles))
-            s.log("OSI: Added " + str(len(matchcrit(s.UI,allfiles))) + " song(s)")
+            s.newpaths = remove_duplicates(s.oldpaths+match_criteria(s.UI,allfiles))
+            s.log("OSI: Added " + str(len(match_criteria(s.UI,allfiles))) + " song(s)")
         elif s.cflag == "r":
-            s.newpaths = dupl_rem(matchcrit(s.UI,s.oldpaths))
+            s.newpaths = remove_duplicates(match_criteria(s.UI,s.oldpaths))
             s.log("OSI: Refined to " + str(len(s.newpaths)) + " song(s)")
         elif s.cflag == "d":
-            s.newpaths = [x for x in s.oldpaths if x not in matchcrit(s.UI,s.oldpaths)]
+            s.newpaths = [x for x in s.oldpaths if x not in match_criteria(s.UI,s.oldpaths)]
             s.log("OSI: Removed " + str(len(s.oldpaths)-len(s.newpaths)) + " song(s)")
         elif s.cflag == "p":
             if s.UI == "" and s.oldpaths != []:
                 s.mpplay(s.oldpaths)
             if s.UI != "":
                 if s.oldpaths == []:
-                    if len(matchcrit(s.UI,allfiles)) != 0:
-                        s.mpplay(matchcrit(s.UI,allfiles))
-                elif len(matchcrit(s.UI,s.oldpaths)) != 0:
-                    s.mpplay(matchcrit(s.UI,s.oldpaths))
+                    if len(match_criteria(s.UI,allfiles)) != 0:
+                        s.mpplay(match_criteria(s.UI,allfiles))
+                elif len(match_criteria(s.UI,s.oldpaths)) != 0:
+                    s.mpplay(match_criteria(s.UI,s.oldpaths))
         elif s.cflag == "gp":
             s.gpsongs = [x for x in allfiles if "\\GP\\" in x.replace("/","\\")]
             s.gpsongs.sort(key=lambda x: os.path.getmtime(x))
             if s.UI == "": temp = -1
             else: temp = -1*int(s.UI)
-            s.newpaths = dupl_rem(s.gpsongs[temp:] + s.oldpaths)
+            s.newpaths = remove_duplicates(s.gpsongs[temp:] + s.oldpaths)
         elif s.cflag == "bin":
             if s.UI == "":
                 for i in s.oldpaths:
@@ -688,9 +736,9 @@ class mainUI:
                 s.log("OSI: Sent " + str(len(s.oldpaths)) + " song(s) to trash")
                 s.newpaths = []
             else:
-                for i in dupl_rem(matchcrit(s.UI,s.oldpaths)):
+                for i in remove_duplicates(match_criteria(s.UI,s.oldpaths)):
                     send2trash(i)
-                s.newpaths = [x for x in s.oldpaths if x not in matchcrit(s.UI,s.oldpaths)]
+                s.newpaths = [x for x in s.oldpaths if x not in match_criteria(s.UI,s.oldpaths)]
                 s.log("OSI: Sent " + str(len(s.oldpaths)-len(s.newpaths)) + " song(s) to trash")
             s.mprefresh() # also updates local allfiles
         elif s.cflag == "e":
@@ -700,20 +748,20 @@ class mainUI:
             s.log("OSI: Cleared selection")
         elif s.cflag == "pg":
             if is_int(s.UI):
-                s.mpPage = int(s.UI - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+                s.mp_page = int(s.UI - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
         elif s.cflag == "pgn":
-            s.mpPage = (s.mpPage + 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+            s.mp_page = (s.mp_page + 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
         elif s.cflag == "pgp":
-            s.mpPage = (s.mpPage - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+            s.mp_page = (s.mp_page - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
         elif s.cflag == "pl":
-            if readFromText(str("mp pl "+s.UI)) != False:
-                s.mpplay(readFromText(str("mp pl "+s.UI)))
+            if read_from_text(str("mp pl "+s.UI)) != False:
+                s.mpplay(read_from_text(str("mp pl "+s.UI)))
         elif s.cflag == "plsave":
             if len(s.oldpaths) == 0:
                 #logappend("HMP: No song(s) selected")
                 pass
             else:
-                writeToText(s.oldpaths,str("mp pl "+s.UI))
+                write_to_text(s.oldpaths,str("mp pl "+s.UI))
                 s.log("OSI: Saved playlist")
                 try:
                     s.mpinterpret("plic")
@@ -721,13 +769,13 @@ class mainUI:
                 except:
                     pass
         elif s.cflag == "pldel":
-            if delText("mp pl "+s.UI):
+            if del_text("mp pl "+s.UI):
                 s.log("OSI: Playlist deleted")
             else:
                 s.log("ERR: Playlist deletion failed")
         elif s.cflag == "pll":
-            if readFromText(str("mp pl "+s.UI)) != False:
-                s.newpaths = dupl_rem(s.oldpaths+readFromText(str("mp pl "+s.UI)))
+            if read_from_text(str("mp pl "+s.UI)) != False:
+                s.newpaths = remove_duplicates(s.oldpaths+read_from_text(str("mp pl "+s.UI)))
                 s.log("OSI: Loaded " + s.UI)
         elif s.cflag == "rf":
             s.mprefresh()
@@ -742,11 +790,11 @@ class mainUI:
             s.pliactive = False
         else:
             if s.oldpaths == []:
-                if len(matchcrit(s.cflag+" "+s.UI,allfiles)) != 0:
-                    s.mpplay(matchcrit(s.cflag+" "+s.UI,allfiles))
+                if len(match_criteria(s.cflag+" "+s.UI,allfiles)) != 0:
+                    s.mpplay(match_criteria(s.cflag+" "+s.UI,allfiles))
             else:
-                if len(matchcrit(s.cflag+" "+s.UI,s.oldpaths)) != 0:
-                    s.mpplay(matchcrit(s.cflag+" "+s.UI,s.oldpaths))
+                if len(match_criteria(s.cflag+" "+s.UI,s.oldpaths)) != 0:
+                    s.mpplay(match_criteria(s.cflag+" "+s.UI,s.oldpaths))
 
         for i in range(len(s.newpaths)):
             s.newpaths[i] = "\\".join(s.newpaths[i].split("\\"))
@@ -754,7 +802,7 @@ class mainUI:
 
         # now that the new paths are known, update the widgets accordingly
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
-            mpWidgets.append(musicLine(i))
+            mpWidgets.append(MpWidget(i))
 
         if len(s.oldpaths) > 0 and len(s.newpaths) == 0:
             musicPaths = []
@@ -762,7 +810,7 @@ class mainUI:
                 i.mainframe.destroy()
             mpWidgets = []
         else:
-            for i in [x for x in s.oldpaths if x not in s.newpaths]
+            for i in [x for x in s.oldpaths if x not in s.newpaths]:
                 mpWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
                 OSI.mpupdate()
 
@@ -771,17 +819,17 @@ class mainUI:
         # decide which mpWidgets to show
         for i in mpWidgets:
             i.hide()
-        for i in range((s.mpPage) * MP_PAGE_SIZE, min(len(mpWidgets), ((s.mpPage + 1) * MP_PAGE_SIZE))):
+        for i in range((s.mp_page) * MP_PAGE_SIZE, min(len(mpWidgets), ((s.mp_page + 1) * MP_PAGE_SIZE))):
             mpWidgets[i].show()
 
         # update page handler
-        s.mppagehandler.set_page(s.mpPage+1, len(mpWidgets))
+        s.mp_pageHandler.set_page(s.mp_page+1, len(mpWidgets))
 
         # raise playlist info widget above entries
         try: s.pliwrapper.tkraise()
         except: pass
 
-    def mpupdate(s): # get all the musicLine widgets to update themselves
+    def mpupdate(s): # get all the MpWidget widgets to update themselves
         for i in mpWidgets: i.update()
 
     def mpplay(s,songlist): # function to play a list of .mp3 files with foobar
@@ -806,12 +854,12 @@ class mainUI:
         s.plikeydel.pack(side=RIGHT)
         # get all playlists + info
         s.plipllist = []  #'playlistinfoplaylistlist' i am excellent at naming things
-        for i in searchText("mp pl "):
+        for i in search_text("mp pl "):
             s.plipllist.append([i[6:]]) # add name
-            s.plipllist[-1].append(str(len(readFromText(i)))) # add number of song(s)
-            s.plipllist[-1].append(str(len(dupl_rem([x.split("/")[-1].split("\\")[1] for x in readFromText(i)])))) # add number of artists (mildly proud that this worked in one go)
+            s.plipllist[-1].append(str(len(read_from_text(i)))) # add number of song(s)
+            s.plipllist[-1].append(str(len(remove_duplicates([x.split("/")[-1].split("\\")[1] for x in read_from_text(i)])))) # add number of artists (mildly proud that this worked in one go)
             if settings["set_pliduration"]=="True":
-                s.temp_length = sum([int(MP3(x).info.length) for x in readFromText(i) if '.m4a' not in x])
+                s.temp_length = sum([int(MP3(x).info.length) for x in read_from_text(i) if '.m4a' not in x])
                 s.plipllist[-1].append(str(int(s.temp_length//60))+":"+str(int(s.temp_length%60)))
 
         for i in s.plipllist:
@@ -878,7 +926,7 @@ class mainUI:
 
             elif flag in ["d","del","bin"]: # delete file / folder
                 if comm != "":
-                    target = matchcrit(comm, dbstate[1])
+                    target = match_criteria(comm, dbstate[1])
                     for i in target:
                         targetindex = dbstate[1].index(i)
                         i = dbstate[2][targetindex]
@@ -927,12 +975,12 @@ class mainUI:
             else: # open aegis/text/folder
                 if flag != "o":
                     comm = flag + " " + comm
-                matchresult = matchcrit(comm,dbstate[1])
+                matchresult = match_criteria(comm,dbstate[1])
                 if matchresult != []:
                     matchresult = matchresult[0]
                     matchindex = dbstate[1].index(matchresult)
                     if os.path.isdir(rootdir+dbloc+matchresult):
-                        dbloc += matchcrit(comm,dbstate[1])[0]+"/"
+                        dbloc += match_criteria(comm,dbstate[1])[0]+"/"
                     else:
                         if dbstate[3][matchindex] == "text":
                             s.dbtitle.insert(END,matchresult)
@@ -979,7 +1027,7 @@ class mainUI:
             if flag in ["s","save","b"]: # save and exit file
 
                 if dbloc.endswith(".txt"):
-                    dbloc = "/".join(dbloc.split("/")[:-1])+"/"+filterchars(s.dbtitle.get("0.0",END),"\\/*<>:?\"|\n")+".txt"
+                    dbloc = "/".join(dbloc.split("/")[:-1])+"/"+filter_chars(s.dbtitle.get("0.0",END),"\\/*<>:?\"|\n")+".txt"
                     writefile = open(rootdir+dbloc,"w")
                     writefile.write("\n".join(s.dbeditor.get("0.0",END).split("\n")[:-1]))
                     writefile.close()
@@ -1122,13 +1170,13 @@ class mainUI:
 
         elif entry.startswith("pg "):
             if is_int(entry[3:]):
-                s.dlPage = int(int(entry[3:]) - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+                s.dl_page = int(int(entry[3:]) - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
 
         elif entry == "pgn":
-            s.dlPage = (s.dlPage + 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+            s.dl_page = (s.dl_page + 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
 
         elif entry == "pgp":
-            s.dlPage = (s.dlPage - 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+            s.dl_page = (s.dl_page - 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
 
         elif entry == "dl":
             # go through all open widgets and tell them to ready
@@ -1142,12 +1190,12 @@ class mainUI:
             query = "+".join(entry[3:].split())
             res = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&q="+query+"&type=video&key="+settings["yt_api_key"])
             data = res.json()["items"][:DL_ALTERNATIVES]
-            dlWidgets.append(ytSingle([s.yt_get_track_data(x) for x in data]))
+            dlWidgets.append(YtSingle([s.yt_get_track_data(x) for x in data]))
 
         elif entry.startswith(("album ")) and gplogin != False:
             search_results = s.gpsearch_album(entry[6:])
             if search_results != False:
-                dlWidgets.append(gpAlbum(search_results))
+                dlWidgets.append(GpAlbum(search_results))
 
         elif entry.startswith(("http://","https://","www.","youtube.com","play.google")):
             # if true, start parsing URL
@@ -1182,25 +1230,25 @@ class mainUI:
             s.log("OSI: URL parsed")
 
             if type == "gp track":
-                dlWidgets.append(gpTrack([s.gp_get_track_data(api.get_track_info(id))]))
+                dlWidgets.append(GpTrack([s.gp_get_track_data(api.get_track_info(id))]))
 
             if type == "gp playlist":
                 search_result = api.get_shared_playlist_contents(id)
                 web_result = webapi.get_shared_playlist_info(id)
                 pl_info = [
-                            _filter(web_result["title"]),
-                            _filter(web_result["author"]),
+                            filter_(web_result["title"]),
+                            filter_(web_result["author"]),
                             str(web_result["num_tracks"]),
-                            _filter(web_result["description"]),
+                            filter_(web_result["description"]),
                           ]
-                dlWidgets.append(gpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
+                dlWidgets.append(GpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
 
             if type == "gp album":
-                dlWidgets.append(gpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
+                dlWidgets.append(GpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
 
             if type == "yt track":
                 trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+id+"&key="+settings["yt_api_key"])
-                dlWidgets.append(ytSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
+                dlWidgets.append(YtSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
 
             if type == "yt playlist":
                 plres = requests.get("https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id="+id+"&key="+settings["yt_api_key"])
@@ -1217,24 +1265,24 @@ class mainUI:
                         initial_trackdata += next_trackres.json()["items"]
                         try: pagetoken = next_trackres.json()["nextPageToken"]
                         except: break
-                dlWidgets.append(ytMulti([s.yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
+                dlWidgets.append(YtMulti([s.yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
 
 
         elif entry != "" and gplogin != False:
             # not a command or URL: default behaviour is to search GP for single track
             search_results = s.gpsearch_track(entry)
             if search_results != False:
-                dlWidgets.append(gpTrack(search_results))
+                dlWidgets.append(GpTrack(search_results))
 
         # decide which dlWidgets to show
         for i in dlWidgets:
             i.hide()
 
-        for i in range((s.dlPage) * DL_PAGE_SIZE, min(len(dlWidgets), ((s.dlPage + 1) * DL_PAGE_SIZE))):
+        for i in range((s.dl_page) * DL_PAGE_SIZE, min(len(dlWidgets), ((s.dl_page + 1) * DL_PAGE_SIZE))):
             dlWidgets[i].show()
 
         # update page handler
-        s.dlpagehandler.set_page(s.dlPage+1, len(dlWidgets))
+        s.dl_pageHandler.set_page(s.dl_page+1, len(dlWidgets))
 
     def dl_delete(s, object):
         dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
@@ -1259,7 +1307,7 @@ class mainUI:
         if gplogin == True:
             s.dlloginreq.pack_forget()
             DLMAN.mainframe.pack(side=BOTTOM, fill=X, pady=(10,0))
-        OSI.dlpagehandler = pageHandler("dl", DL_PAGE_SIZE)
+        OSI.dl_pageHandler = PageHandler("dl", DL_PAGE_SIZE)
         time.sleep(1)
         OSI.log("OSI: All systems nominal")
 
@@ -1319,37 +1367,37 @@ class mainUI:
             try: vid_id = track["id"]["videoId"]
             except: vid_id = track["id"]
 
-        return [_filter(str(track["snippet"]["title"])),
-                _filter(str(track["snippet"]["channelTitle"])),
+        return [filter_(str(track["snippet"]["title"])),
+                filter_(str(track["snippet"]["channelTitle"])),
                 str(track["snippet"]["thumbnails"]["high"]["url"]),
                 str(vid_id)]
 
     def gp_get_track_data(s, track):
-        return [_filter(str(track.get("title"))),
-                _filter(str(track.get("artist"))),
-                _filter(str(track.get("album"))),
+        return [filter_(str(track.get("title"))),
+                filter_(str(track.get("artist"))),
+                filter_(str(track.get("album"))),
                 str(track.get("albumArtRef")[0].get("url")),
-                _filter(str(track.get("trackNumber"))),
-                _filter(str(track.get("storeId"))),
-                _filter(str(track.get("composer"))),
-                _filter(str(track.get("year"))),
-                _filter(str(track.get("beatsPerMinute"))),
-                _filter(str(track.get("genre")))]
+                filter_(str(track.get("trackNumber"))),
+                filter_(str(track.get("storeId"))),
+                filter_(str(track.get("composer"))),
+                filter_(str(track.get("year"))),
+                filter_(str(track.get("beatsPerMinute"))),
+                filter_(str(track.get("genre")))]
 
     def gp_get_album_data(s, album):
-        return [_filter(str(album.get("name"))),
-                _filter(str(album.get("artist"))),
-                _filter(str(album.get("year"))),
+        return [filter_(str(album.get("name"))),
+                filter_(str(album.get("artist"))),
+                filter_(str(album.get("year"))),
                 str(album.get("albumArtRef")),
-                _filter(str(album.get("albumId"))),
-                _filter(str(album.get("explicitType")))]
+                filter_(str(album.get("albumId"))),
+                filter_(str(album.get("explicitType")))]
 
     def gpsearch_track(s,query):
         # perform search of gp database
         try:
             results = api.search(query).get("song_hits",DL_ALTERNATIVES)[:DL_ALTERNATIVES]
         except IndexError:
-            gpLineEmpty(query)
+            GpLineEmpty(query)
             return False
         curinfo = []
         for i in results:
@@ -1364,7 +1412,7 @@ class mainUI:
         try:
             results = api.search(query).get("album_hits",DL_ALTERNATIVES)[:DL_ALTERNATIVES]
         except IndexError:
-            gpLineEmpty(query)
+            GpLineEmpty(query)
             return False
         curinfo = []
         for i in results:
@@ -1445,13 +1493,13 @@ class mainUI:
         s.updateSettings()
 
     def updateSettings(s):
-        for i in s.stWidgets: i.update()
-        exportSettings()
+        for i in s.StWidgets: i.update()
+        export_settings()
 
 
-    #################################### END OF MAINUI #####################################################################
+    #################################### END OF MainUI #####################################################################
 
-class pageHandler:
+class PageHandler:
     def __init__(s, mode, page_size):
         s.mode = mode
         s.page_size = page_size
@@ -1487,7 +1535,7 @@ class pageHandler:
     def next(s):
         s.interpreter("pgn")
 
-class dlManager:
+class DownloadManager:
     def __init__(s):
         s.mainframe = tk.Frame(OSI.dlframe,bg=COLOR_BUTTON,height=35, width=TK_PROGRESS_BAR_WIDTH)
         s.mainframe.pack_propagate(0)
@@ -1507,7 +1555,7 @@ class dlManager:
         s.count_ytcomplete = 0
         s.count_yttotal = 0
         s.count_convtotal = 0
-        s.gptracks = []
+        s.GpTracks = []
         s.yttracks = []
         s.staticlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,anchor=W,font=FONT_M,width=40)
         s.staticlabel.pack(side=LEFT,pady=(1,0))
@@ -1555,8 +1603,8 @@ class dlManager:
         s.convstatus.configure(text=str(s.count_convtotal)+" tracks")
 
     def download(s): # publicly accessible download command that is split into further tasks
-        if len(s.gptracks) + len(s.yttracks) > 0:
-            if len(s.gptracks) > 0:
+        if len(s.GpTracks) + len(s.yttracks) > 0:
+            if len(s.GpTracks) > 0:
                 s.state = "downloading gp"
             else:
                 s.state = "downloading yt"
@@ -1566,14 +1614,14 @@ class dlManager:
 
     def process_downloads(s): # function that updates the downloading process
         # process the top of the gp queue
-        if s.idle and len(s.gptracks) + len(s.yttracks) > 0:
-            if len(s.gptracks) > 0:
-                threading.Thread(target=lambda: s.gp_download(s.gptracks.pop(0))).start()
+        if s.idle and len(s.GpTracks) + len(s.yttracks) > 0:
+            if len(s.GpTracks) > 0:
+                threading.Thread(target=lambda: s.gp_download(s.GpTracks.pop(0))).start()
             elif len(s.yttracks) > 0:
                 threading.Thread(target=lambda: s.yt_download(s.yttracks.pop(0))).start()
 
         # decide if we need to keep downloading
-        if len(s.gptracks) + len(s.yttracks) > 0:
+        if len(s.GpTracks) + len(s.yttracks) > 0:
             root.after(50,s.process_downloads) # continue the loop
         elif s.idle and s.count_convtotal == 0:
             s.count_gpcomplete = 0
@@ -1596,7 +1644,7 @@ class dlManager:
         name = settings["dldir"]+"/YouTube/"+track[1]+"/"+track[0]+".mp3"
         os.makedirs(os.path.dirname(name), exist_ok=True)
         if not(os.path.isfile(name)):
-            s.idle_conv_watchdog(url, name, track)
+            root.after(100, lambda: s.idle_conv_watchdog(url, name, track))
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             subprocess.Popen(DL_POPEN_ARGS+[url], startupinfo=startupinfo)
@@ -1614,7 +1662,7 @@ class dlManager:
         image = Image.open(BytesIO(requests.get(curinfo[2]).content))
         borders = OSI.findborders(image)
         image = image.crop(borders) # crop image to borders
-        maincolor = colorFromImage(image) # get the prevalent color
+        maincolor = color_from_image(image) # get the prevalent color
         background = Image.new("RGB", (480,480),maincolor)
         background.paste(image, (borders[0],60+borders[1]))
         if _index != None:
@@ -1630,16 +1678,19 @@ class dlManager:
                     s.idle = True
                     s.count_convtotal += 1
                     recursing = True
-                elif os.path.getsize(i) > 10 and not i[:-3]+"webm" in os.listdir():
-                    os.rename(i,name)
-                    imagepath = "/".join(name.split("/")[:-1])+"/"+id+".png"
-                    s.generate_image_data([track]).save(imagepath)
-                    OSI.dlalbumartify(name, imagepath)
-                    file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
-                    OSI.gptagify(name, file_data)
-                    s.count_convtotal -= 1
-                    s.refreshvalues()
-                    return
+                elif os.path.getsize(i) > 1 and len([x for x in os.listdir() if id in x]) == 1:
+                    try:
+                        os.rename(i,name)
+                        imagepath = "/".join(name.split("/")[:-1])+"/"+id+".png"
+                        s.generate_image_data([track]).save(imagepath)
+                        OSI.dlalbumartify(name, imagepath)
+                        file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
+                        OSI.gptagify(name, file_data)
+                        s.count_convtotal -= 1
+                        s.refreshvalues()
+                        return
+                    except:
+                        print("Rename failed, we'll get em next time")
         s.refreshvalues()
         root.after(100, lambda: s.idle_conv_watchdog(id, name, track, recursing)) # else, keep looking
 
@@ -1685,7 +1736,7 @@ class dlManager:
 
     def queue_gp(s,tracklist): # add tracks to the gp queue
         for i in tracklist:
-            s.gptracks.append(i)
+            s.GpTracks.append(i)
             s.count_gptotal += 1
         s.refreshvalues()
 
@@ -1695,7 +1746,7 @@ class dlManager:
             s.count_yttotal += 1
         s.refreshvalues()
 
-class dlLine: # ABSTRACT
+class DlWidget: # ABSTRACT
     def __init__(s):
         # root superclass constructor has the elements shared by all possible variations of downloader widget
         # create root window with basic border
@@ -1734,31 +1785,31 @@ class dlLine: # ABSTRACT
         s.multibutton.configure(command=s.multipack)
         s.multiframe.pack_forget()
 
-class gpLine(dlLine):
+class GpLine(DlWidget):
     def __init__(s):
-        dlLine.__init__(s)
+        DlWidget.__init__(s)
 
     def __str__(s):
-        return "gpLine (INTERFACE!)"
+        return "GpLine (INTERFACE!)"
 
-class gpTrack(gpLine):
+class GpTrack(GpLine):
     def __init__(s, tracklist):
-        gpLine.__init__(s)
+        GpLine.__init__(s)
         s.tracklist = tracklist
         s.multi_index = 0 # which song to select in the tracklist
         s.generate()
 
     def __str__(s):
-        return "gpTrack"
+        return "GpTrack"
 
     def generate(s): # use tracklist and multi_index to generate the widget as desired
-        dlLine.generate(s) # regenerate mainframe
+        DlWidget.generate(s) # regenerate mainframe
 
         curinfo = s.tracklist[s.multi_index]
         s.image = Image.open(BytesIO(requests.get(curinfo[3]).content))
         s.image = s.image.resize((50,50), Image.ANTIALIAS)
         # get the main color from the image for fancy reasons
-        s.bordercolor = colorFromImage(s.image)
+        s.bordercolor = color_from_image(s.image)
 
         if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
             s.bordercontrast = "#000000"
@@ -1792,13 +1843,13 @@ class gpTrack(gpLine):
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
                 if i != s.multi_index: # only generate multilines for nonselected tracks
-                    s.gpTrackMulti(s, s.tracklist[i], i)
+                    s.GpTrackMulti(s, s.tracklist[i], i)
 
-    def ready(s): # send relevant data to dlManager
+    def ready(s): # send relevant data to DownloadManager
         DLMAN.queue_gp([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
 
-    class gpTrackMulti: # gpTrack subclass that just displays a small line
+    class GpTrackMulti: # GpTrack subclass that just displays a small line
         def __init__(s, parent, info, my_index):
             s.parent = parent
             s.info = info
@@ -1818,24 +1869,24 @@ class gpTrack(gpLine):
             s.parent.multi_index = s.my_index
             s.parent.generate()
 
-class gpAlbum(gpLine):
+class GpAlbum(GpLine):
     def __init__(s, albumlist):
-        gpLine.__init__(s)
+        GpLine.__init__(s)
         s.albumlist = albumlist
         s.multi_index = 0
 
         s.generate()
 
     def __str__(s):
-        return "gpAlbum"
+        return "GpAlbum"
 
-    def ready(s): # send relevant data to dlManager
+    def ready(s): # send relevant data to DownloadManager
         album_tracks = api.get_album_info(s.albumlist[s.multi_index][4])["tracks"]
         DLMAN.queue_gp([OSI.gp_get_track_data(x) for x in album_tracks])
         s.wrapper.destroy()
 
     def generate(s):
-        dlLine.generate(s) # regenerate mainframe
+        DlWidget.generate(s) # regenerate mainframe
 
         '''
             (0) name
@@ -1850,7 +1901,7 @@ class gpAlbum(gpLine):
         s.image = Image.open(BytesIO(requests.get(curinfo[3]).content))
         s.image = s.image.resize((50,50), Image.ANTIALIAS)
         # get the main color from the image for fancy reasons
-        s.bordercolor = colorFromImage(s.image)
+        s.bordercolor = color_from_image(s.image)
 
         if (max(s.bordercolor) + min(s.bordercolor)) / 2 >= 127:
             s.bordercontrast = "#000000"
@@ -1882,9 +1933,9 @@ class gpAlbum(gpLine):
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.albumlist)):
                 if i != s.multi_index: # only generate multilines for nonselected tracks
-                    s.gpAlbumMulti(s, s.albumlist[i], i)
+                    s.GpAlbumMulti(s, s.albumlist[i], i)
 
-    class gpAlbumMulti: # gpAlbum subclass that just displays a small line
+    class GpAlbumMulti: # GpAlbum subclass that just displays a small line
         def __init__(s, parent, info, my_index):
             s.parent = parent
             s.info = info
@@ -1902,22 +1953,22 @@ class gpAlbum(gpLine):
             s.parent.multi_index = s.my_index
             s.parent.generate()
 
-class gpPlaylist(gpLine):
+class GpPlaylist(GpLine):
     def __init__(s,tracklist,plinfo):
-        gpLine.__init__(s)
+        GpLine.__init__(s)
         s.plinfo = plinfo
         s.tracklist = tracklist
         s.generate()
 
     def __str__(s):
-        return "gpPlaylist"
+        return "GpPlaylist"
 
-    def ready(s): # send relevant data to dlManager
+    def ready(s): # send relevant data to DownloadManager
         DLMAN.queue_gp(s.tracklist)
         s.wrapper.destroy()
 
     def generate(s):
-        dlLine.generate(s) # regenerate mainframe
+        DlWidget.generate(s) # regenerate mainframe
 
         curinfo = s.plinfo
         s.bordercolor = "#fe5722"
@@ -1946,29 +1997,29 @@ class gpPlaylist(gpLine):
         s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
-class ytLine(dlLine):
+class YtLine(DlWidget):
     def __init__(s):
-        dlLine.__init__(s)
+        DlWidget.__init__(s)
 
     def __str__(s):
-        return "ytLine (INTERFACE!)"
+        return "YtLine (INTERFACE!)"
 
-class ytSingle(ytLine):
+class YtSingle(YtLine):
     def __init__(s, tracklist):
-        ytLine.__init__(s)
+        YtLine.__init__(s)
         s.tracklist = tracklist
         s.multi_index = 0 # which song to select in the tracklist
         s.generate()
 
     def __str__(s):
-        return "ytSingle"
+        return "YtSingle"
 
-    def ready(s): # send relevant data to dlManager
+    def ready(s): # send relevant data to DownloadManager
         DLMAN.queue_yt([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
 
     def generate(s):
-        dlLine.generate(s) # regenerate mainframe
+        DlWidget.generate(s) # regenerate mainframe
 
         DLMAN.generate_image_data(s.tracklist, s.multi_index) # appends image object and primary color to info
         curinfo = s.tracklist[s.multi_index]
@@ -2008,9 +2059,9 @@ class ytSingle(ytLine):
             s.multiframe = tk.Frame(s.wrapper,bg=s.wrapper.cget("bg")) # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
                 if i != s.multi_index: # only generate multilines for nonselected tracks
-                    s.ytSingleMulti(s, s.tracklist[i], i)
+                    s.YtSingleMulti(s, s.tracklist[i], i)
 
-    class ytSingleMulti:
+    class YtSingleMulti:
         def __init__(s, parent, info, my_index):
             s.parent = parent
             s.info = info
@@ -2028,23 +2079,23 @@ class ytSingle(ytLine):
             s.parent.multi_index = s.my_index
             s.parent.generate()
 
-class ytMulti(ytLine):
+class YtMulti(YtLine):
     def __init__(s, tracklist, plinfo):
-        ytLine.__init__(s)
+        YtLine.__init__(s)
         s.tracklist = tracklist
         s.plinfo = plinfo
         s.multi_index = 0 # which song to select in the tracklist
         s.generate()
 
     def __str__(s):
-        return "ytMulti"
+        return "YtMulti"
 
     def ready(s):
         DLMAN.queue_yt(s.tracklist)
         s.wrapper.destroy()
 
     def generate(s):
-        dlLine.generate(s) # regenerate mainframe
+        DlWidget.generate(s) # regenerate mainframe
 
         curinfo = s.plinfo
         s.bordercolor = "#fe0000"
@@ -2073,7 +2124,7 @@ class ytMulti(ytLine):
         s.readybutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OK",width=3,relief='ridge',bd=2,activebackground="green",activeforeground=COLOR_TEXT, highlightbackground=s.bordercolor,highlightcolor=s.bordercolor,command=s.ready)
         s.readybutton.pack(side=RIGHT,padx=(0,8))
 
-class stWidget:
+class StWidget:
     def __init__(s,key,label,col,row,type,altkey=None): # internal settings key, label for user, column in stframe, row in stframe, type of setting (text, bool, file, folder)
         s.key = key
         s.altkey = altkey
@@ -2151,7 +2202,7 @@ class dbLine: # !!! move to below music classes when done
         s.mainframe.pack(side=TOP,fill=X,padx=1,pady=1)
         s.wrapper.pack(side=TOP,pady=(2,0),padx=10,fill=X)
 
-class gpLineEmpty: # !!! move to below music classes when done
+class GpLineEmpty: # !!! move to below music classes when done
     def __init__(s,query):
         s.mainframe = tk.Frame(OSI.dlframe,highlightthickness=2,highlightbackground="white")
         s.emptylabel = tk.Label(s.mainframe,fg="#c41313",text=("NO MATCH: "+query))
@@ -2180,7 +2231,7 @@ class pliLine:
         s.pliplaybtn.pack(side=RIGHT,anchor=W)
         s.plisframe.pack(side=TOP,fill=X,pady=1)
 
-class musicLine:
+class MpWidget:
     def __init__(s,path):
         s.path = path
         musicPaths.append(s.path)
@@ -2250,8 +2301,8 @@ class musicLine:
 
 # LAUNCH PREP
 root = tk.Tk()
-OSI = mainUI(root)
-DLMAN = dlManager()
+OSI = MainUI(root)
+DLMAN = DownloadManager()
 OSI.greet()
 
 # root operations first
@@ -2284,7 +2335,7 @@ for i in bindlist:
 
 # mp
 
-OSI.mppagehandler = pageHandler("mp",MP_PAGE_SIZE)
+OSI.mp_pageHandler = PageHandler("mp",MP_PAGE_SIZE)
 
 OSI.mprefresh()
 
@@ -2305,14 +2356,14 @@ gppass = settings["gppass"]
 threading.Thread(target=OSI.gpbackgroundlogin).start()
 
 # settings
-OSI.stWidgets = [stWidget("searchdir","Music folder",0,0,"folder"),
-                stWidget("dldir","Download folder",0,1,"folder"),
-                stWidget("foobarexe","Foobar EXE",0,2,"file"),
-                stWidget("set_notitle","Use own title bar instead of windows",0,3,"bool"),
-                stWidget("set_pliduration","Show lengths of playlists in 'pli' menu",0,4,"bool"),
-                stWidget("set_update","Get updates from foobar",0,5,"bool"),
-                stWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
-                stWidget("set_draggable","Make window draggable with mouse",0,7,"bool")]
+OSI.StWidgets = [StWidget("searchdir","Music folder",0,0,"folder"),
+                StWidget("dldir","Download folder",0,1,"folder"),
+                StWidget("foobarexe","Foobar EXE",0,2,"file"),
+                StWidget("set_notitle","Use own title bar instead of windows",0,3,"bool"),
+                StWidget("set_pliduration","Show lengths of playlists in 'pli' menu",0,4,"bool"),
+                StWidget("set_update","Get updates from foobar",0,5,"bool"),
+                StWidget("set_foobarplaying","Show currently playing song",0,6,"bool"),
+                StWidget("set_draggable","Make window draggable with mouse",0,7,"bool")]
 
 get_attention(root)
 root.mainloop()
