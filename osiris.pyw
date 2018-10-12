@@ -110,14 +110,14 @@ if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
 
 # global lists for (non)-rendered widgets per tab
-mpWidgets = []
-dbWidgets = []
-dlWidgets = []
+mp_widgets = []
+db_widgets = []
+dl_widgets = []
 
-musicPaths = [] # currently selected songs
+music_paths = [] # currently selected songs
 allfiles = [] # all known songs
 
-dbloc = DB_DIR # location for database browser
+db_loc = DB_DIR # location for database browser
 dbstate = ["browse",[],[],[]] # mode, showlist, pathlist, maplist
 dbkey = False # currently entered Aegis key
 
@@ -411,7 +411,7 @@ class MainUI:
             s.exitbutton.bind("<Leave>", lambda x: s.exitbutton.configure(bg=COLOR_BUTTON))
             s.exitbutton.pack(side=RIGHT, fill=Y)
             # minimize not possible because of overrideredirect
-            s.minbutton = tk.Button(s.buttonframe,borderwidth=0,bg=COLOR_BUTTON,activebackground=COLOR_BG_3,fg=COLOR_TEXT,activeforeground="white",font=FONT_BOLD,width=4,text=" _ ",command=s.attemptMinimise)
+            s.minbutton = tk.Button(s.buttonframe,borderwidth=0,bg=COLOR_BUTTON,activebackground=COLOR_BG_3,fg=COLOR_TEXT,activeforeground="white",font=FONT_BOLD,width=4,text=" _ ",command=s.attempt_minimise)
             s.minbutton.bind("<Enter>", lambda x: s.minbutton.configure(bg=COLOR_BG_3))
             s.minbutton.bind("<Leave>", lambda x: s.minbutton.configure(bg=COLOR_BUTTON))
             s.minbutton.pack(side=RIGHT, fill=Y)
@@ -474,8 +474,8 @@ class MainUI:
 
         s.dbframe = tk.Frame(s.contentframe,background=COLOR_BG_1)
         s.dbinfoframe = tk.Frame(s.dbframe)
-        s.dbloclabel = tk.Label(s.dbinfoframe,bg=COLOR_BG_1, fg=COLOR_TEXT, font=FONT_M, text="Browsing: "+dbloc)
-        s.dbloclabel.pack(side=LEFT)
+        s.db_loclabel = tk.Label(s.dbinfoframe,bg=COLOR_BG_1, fg=COLOR_TEXT, font=FONT_M, text="Browsing: "+db_loc)
+        s.db_loclabel.pack(side=LEFT)
         s.dbinfoframe.pack(side=TOP)
         s.dbeditorframe = tk.Frame(s.dbframe,bg=COLOR_BUTTON,highlightthickness=2,highlightbackground=COLOR_BG_3,highlightcolor=COLOR_BG_3,relief="flat")
         s.dbtitlewrapper = tk.Frame(s.dbeditorframe, bg=COLOR_BG_3)
@@ -517,7 +517,7 @@ class MainUI:
         # lists of things
         s.modes = ["mp","db","dl","se","st"]
         s.frames = [s.mpframe,s.dbframe,s.dlframe,s.seframe,s.stframe]
-        s.interpreters = [s.mpinterpret,s.dbinterpret,s.dlinterpret,s.seinterpret,s.stinterpret]
+        s.interpreters = [s.mp_interpret,s.db_interpret,s.dl_interpret,s.se_interpret,s.st_interpret]
 
         s.focuslist = [s.dbeditor,s.glbentry]
         # commence the pre-op
@@ -539,15 +539,15 @@ class MainUI:
         s.select("mp") # should be the last statement in this init
 
 # GENERAL DEFS
-    def attemptMinimise(s):
+    def attempt_minimise(s):
         if s.state != "min":
             root.geometry("0x0")
             s.state = "forcemin"
-            root.after(100,s.stateSetMin)
-    def stateSetMin(s):
+            root.after(100,s.state_set_min)
+    def state_set_min(s):
         s.state = "min"
 
-    def attemptMaximise(s):
+    def attempt_maximise(s):
         if s.state == "min":
             root.geometry(geomwidth+"x"+geomheight+"+0+0")
             s.state = "max"
@@ -566,10 +566,10 @@ class MainUI:
             s.entrypos -= 1
         s.responsive()
 
-    def tableft(s,event):
+    def tab_left(s,event):
         OSI.select(OSI.modes[OSI.modes.index(OSI.mode)-1])
         return "break"
-    def tabright(s,event):
+    def tab_right(s,event):
         OSI.select(OSI.modes[(OSI.modes.index(OSI.mode)+1)%(len(OSI.modes))])
         return "break"
 
@@ -630,16 +630,16 @@ class MainUI:
                 if flag == "s":
                     msg = "Select " + str(len(match_criteria(comm,allfiles))) + " song(s)"
                 if flag == "p":
-                    if musicPaths == []:
+                    if music_paths == []:
                         msg = "Play " + str(len(match_criteria(comm,allfiles))) + " song(s)"
                     else:
-                        msg = "Play " + str(len(match_criteria(comm,musicPaths))) + " song(s)"
+                        msg = "Play " + str(len(match_criteria(comm,music_paths))) + " song(s)"
                 if flag == "r":
-                    msg = "Refine to " + str(len(match_criteria(comm,musicPaths))) + " song(s)"
+                    msg = "Refine to " + str(len(match_criteria(comm,music_paths))) + " song(s)"
                 if flag == "d":
-                    msg = "Remove " + str(len(match_criteria(comm,musicPaths))) + " song(s)"
+                    msg = "Remove " + str(len(match_criteria(comm,music_paths))) + " song(s)"
                 if flag == "bin":
-                    msg = "Send " + str(len(match_criteria(comm,musicPaths))) + " song(s) to trash"
+                    msg = "Send " + str(len(match_criteria(comm,music_paths))) + " song(s) to trash"
                 if flag == "gp":
                     if is_int(comm):
                         msg = "Select " + comm + " recent song(s)"
@@ -657,10 +657,10 @@ class MainUI:
                     else:
                         msg = "Unknown pl (try 'pli')"
             else:
-                if musicPaths == []:
+                if music_paths == []:
                     msg = "Play " + str(len(match_criteria(cur,allfiles))) + " song(s)"
                 else:
-                    msg = "Play " + str(len(match_criteria(cur,musicPaths))) + " song(s)"
+                    msg = "Play " + str(len(match_criteria(cur,music_paths))) + " song(s)"
         elif s.mode == "gp":
             if cur == "dl":
                 msg = "Download this selection"
@@ -682,7 +682,7 @@ class MainUI:
 
 #################################### MUSIC DEFS #####################################################################
 
-    def mprefresh(s): # refreshes the database index in osData.txt
+    def mp_refresh(s): # refreshes the database index in osData.txt
         '''diskdata = [os.path.join(settings["searchdir"],name)
             for settings["searchdir"], dirs, files in os.walk(settings["searchdir"])
             for name in files
@@ -693,9 +693,9 @@ class MainUI:
             diskdata.extend(glob.glob(settings["searchdir"]+"**/*"+ftype, recursive = True))
 
         write_to_text(diskdata,"mp allfiles")
-        s.mpfilesget()
+        s.mp_get_files()
 
-    def mpfilesget(s): # updates allfiles and mp playcount using osData.txt
+    def mp_get_files(s): # updates allfiles and mp playcount using osData.txt
         global allfiles
         result = read_from_text("mp allfiles")
         if result != False:
@@ -705,13 +705,13 @@ class MainUI:
             s.log("OSI: pls restart")
             s.log("OSI: (mp allfiles in osData.txt)")
 
-    def mpinterpret(s,entry): # interprets the given entry command in the context of the music player
-        global musicPaths, mpWidgets
+    def mp_interpret(s,entry): # interprets the given entry command in the context of the music player
+        global music_paths, mp_widgets
         s.entry = " ".join(entry.split())
         s.cflag = entry.split()[0]
         s.UI = entry[len(s.cflag)+1:]
-        s.oldpaths = musicPaths[:]
-        s.newpaths = musicPaths[:]
+        s.oldpaths = music_paths[:]
+        s.newpaths = music_paths[:]
 
         # start by finding what the new desired paths are
         # also run code that doesn't influence paths, eg: playing, refreshing, saving
@@ -726,13 +726,13 @@ class MainUI:
             s.log("OSI: Removed " + str(len(s.oldpaths)-len(s.newpaths)) + " song(s)")
         elif s.cflag == "p":
             if s.UI == "" and s.oldpaths != []:
-                s.mpplay(s.oldpaths)
+                s.mp_play(s.oldpaths)
             if s.UI != "":
                 if s.oldpaths == []:
                     if len(match_criteria(s.UI,allfiles)) != 0:
-                        s.mpplay(match_criteria(s.UI,allfiles))
+                        s.mp_play(match_criteria(s.UI,allfiles))
                 elif len(match_criteria(s.UI,s.oldpaths)) != 0:
-                    s.mpplay(match_criteria(s.UI,s.oldpaths))
+                    s.mp_play(match_criteria(s.UI,s.oldpaths))
         elif s.cflag == "gp":
             s.gpsongs = [x for x in allfiles if "\\GP\\" in x.replace("/","\\")]
             s.gpsongs.sort(key=lambda x: os.path.getmtime(x))
@@ -750,22 +750,22 @@ class MainUI:
                     send2trash(i)
                 s.newpaths = [x for x in s.oldpaths if x not in match_criteria(s.UI,s.oldpaths)]
                 s.log("OSI: Sent " + str(len(s.oldpaths)-len(s.newpaths)) + " song(s) to trash")
-            s.mprefresh() # also updates local allfiles
+            s.mp_refresh() # also updates local allfiles
         elif s.cflag == "e":
-            s.mpplay([])
+            s.mp_play([])
         elif s.cflag == "c":
             s.newpaths = []
             s.log("OSI: Cleared selection")
         elif s.cflag == "pg":
             if is_int(s.UI):
-                s.mp_page = int(s.UI - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+                s.mp_page = int(s.UI - 1) % ceil(len(mp_widgets)/MP_PAGE_SIZE)
         elif s.cflag == "pgn":
-            s.mp_page = (s.mp_page + 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+            s.mp_page = (s.mp_page + 1) % ceil(len(mp_widgets)/MP_PAGE_SIZE)
         elif s.cflag == "pgp":
-            s.mp_page = (s.mp_page - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+            s.mp_page = (s.mp_page - 1) % ceil(len(mp_widgets)/MP_PAGE_SIZE)
         elif s.cflag == "pl":
             if read_from_text(str("mp pl "+s.UI)) != False:
-                s.mpplay(read_from_text(str("mp pl "+s.UI)))
+                s.mp_play(read_from_text(str("mp pl "+s.UI)))
         elif s.cflag == "plsave":
             if len(s.oldpaths) == 0:
                 #logappend("HMP: No song(s) selected")
@@ -774,8 +774,8 @@ class MainUI:
                 write_to_text(s.oldpaths,str("mp pl "+s.UI))
                 s.log("OSI: Saved playlist")
                 try:
-                    s.mpinterpret("plic")
-                    s.mpinterpret("pli")
+                    s.mp_interpret("plic")
+                    s.mp_interpret("pli")
                 except:
                     pass
         elif s.cflag == "pldel":
@@ -788,11 +788,11 @@ class MainUI:
                 s.newpaths = remove_duplicates(s.oldpaths+read_from_text(str("mp pl "+s.UI)))
                 s.log("OSI: Loaded " + s.UI)
         elif s.cflag == "rf":
-            s.mprefresh()
+            s.mp_refresh()
             s.log("OSI: Refreshed library")
         elif s.cflag == "pli": # open the playlist information window
             if not s.pliactive:
-                s.mpplgen()
+                s.mp_generate_pli()
                 s.pliactive = True
         elif s.cflag == "plic": # close the playlist information window
             s.pliwrapper.place_forget()
@@ -801,10 +801,10 @@ class MainUI:
         else:
             if s.oldpaths == []:
                 if len(match_criteria(s.cflag+" "+s.UI,allfiles)) != 0:
-                    s.mpplay(match_criteria(s.cflag+" "+s.UI,allfiles))
+                    s.mp_play(match_criteria(s.cflag+" "+s.UI,allfiles))
             else:
                 if len(match_criteria(s.cflag+" "+s.UI,s.oldpaths)) != 0:
-                    s.mpplay(match_criteria(s.cflag+" "+s.UI,s.oldpaths))
+                    s.mp_play(match_criteria(s.cflag+" "+s.UI,s.oldpaths))
 
         for i in range(len(s.newpaths)):
             s.newpaths[i] = "\\".join(s.newpaths[i].split("\\"))
@@ -812,42 +812,42 @@ class MainUI:
 
         # now that the new paths are known, update the widgets accordingly
         for i in [x for x in s.newpaths if x not in s.oldpaths]:
-            mpWidgets.append(MpWidget(i))
+            mp_widgets.append(MpWidget(i))
 
         if len(s.oldpaths) > 0 and len(s.newpaths) == 0:
-            musicPaths = []
-            for i in mpWidgets:
+            music_paths = []
+            for i in mp_widgets:
                 i.mainframe.destroy()
-            mpWidgets = []
+            mp_widgets = []
         else:
             for i in [x for x in s.oldpaths if x not in s.newpaths]:
-                mpWidgets[musicPaths.index(i)].remove(True) # incredibly inefficient
-                OSI.mpupdate()
+                mp_widgets[music_paths.index(i)].remove(True) # incredibly inefficient
+                OSI.mp_update_widgets()
 
         # place any commands that should run after every entry below this line
 
-        # decide which mpWidgets to show
-        for i in mpWidgets:
+        # decide which mp_widgets to show
+        for i in mp_widgets:
             i.hide()
-        for i in range((s.mp_page) * MP_PAGE_SIZE, min(len(mpWidgets), ((s.mp_page + 1) * MP_PAGE_SIZE))):
-            mpWidgets[i].show()
+        for i in range((s.mp_page) * MP_PAGE_SIZE, min(len(mp_widgets), ((s.mp_page + 1) * MP_PAGE_SIZE))):
+            mp_widgets[i].show()
 
         # update page handler
-        s.mp_pageHandler.set_page(s.mp_page+1, len(mpWidgets))
+        s.mp_pageHandler.set_page(s.mp_page+1, len(mp_widgets))
 
         # raise playlist info widget above entries
         try: s.pliwrapper.tkraise()
         except: pass
 
-    def mpupdate(s): # get all the MpWidget widgets to update themselves
-        for i in mpWidgets: i.update()
+    def mp_update_widgets(s): # get all the MpWidget widgets to update themselves
+        for i in mp_widgets: i.update()
 
-    def mpplay(s,songlist): # function to play a list of .mp3 files with foobar
+    def mp_play(s,songlist): # function to play a list of .mp3 files with foobar
         #mpcount(songlist)
         s.log("OSI: Playing " + str(len(songlist)) + " song(s)")
         subprocess.Popen([settings["foobarexe"]]+[i for i in songlist], shell=False)
 
-    def mpplgen(s): # generate the playlist info widget
+    def mp_generate_pli(s): # generate the playlist info widget
         # define surrounding layout (regardless of playlists)
         s.pliwrapper = tk.Frame(s.mpframe,bg=COLOR_BUTTON)
         s.pliwrapper.pack_propagate(0)
@@ -860,7 +860,7 @@ class MainUI:
             s.plitextstring += "  Length"
         s.plikey = tk.Label(s.plikeyframe,font=FONT_M,text=s.plitextstring,bg=COLOR_BG_2,fg=COLOR_TEXT)
         s.plikey.pack(side=LEFT,anchor=W)
-        s.plikeydel = tk.Button(s.plikeyframe,fg=COLOR_TEXT,font=FONT_M,borderwidth=0,text="X",command=lambda:s.mpinterpret("plic"),bg=COLOR_BUTTON)
+        s.plikeydel = tk.Button(s.plikeyframe,fg=COLOR_TEXT,font=FONT_M,borderwidth=0,text="X",command=lambda:s.mp_interpret("plic"),bg=COLOR_BUTTON)
         s.plikeydel.pack(side=RIGHT)
         # get all playlists + info
         s.plipllist = []  #'playlistinfoplaylistlist' i am excellent at naming things
@@ -878,8 +878,8 @@ class MainUI:
         s.pliwrapper.place(x=630,width=266,height=TK_HEIGHT)
 
 #################################### DATABASE DEFS #####################################################################
-    def dbinterpret(s,entry):
-        global dbloc, dbkey
+    def db_interpret(s,entry):
+        global db_loc, dbkey
         if dbstate[0] == "password":
             if dbkey == False:
                 dbkey = [entry,""]
@@ -890,7 +890,7 @@ class MainUI:
                     dbstate[0] = "browse"
                     s.glbentry.delete("0",END)
                     s.glbentry.configure(show="")
-                    s.dbrefresh()
+                    s.db_refresh()
                     s.glbentry.bind("<Return>",lambda x:s.visentry(s.glbentry.get()))
 
         # when browsing
@@ -902,30 +902,32 @@ class MainUI:
                 if comm == "affirmative "+dbkey[0]+";"+dbkey[1]:
                     # full decrypt confirmed and authorised
                     for i in [x for x in dbstate[1] if x.endswith(".aegis")]:
-                        reading = open(rootdir+dbloc+i,"rb")
-                        decdata = s.aegdec(dbkey,reading.read(-1))
-                        writing = open(rootdir+dbloc+i+".txt","w")
+                        reading = open(rootdir+db_loc+i,"rb")
+                        decdata = s.db_aeg_dec(dbkey,reading.read(-1))
+                        writing = open(rootdir+db_loc+i+".txt","w")
                         writing.write(decdata)
                         reading.close()
                         writing.close()
-                        send2trash(rootdir+dbloc+i)
+                        send2trash(rootdir+db_loc+i)
+
             elif flag == "fullencrypt" and len(dbkey) == 2:
                 if comm == "affirmative "+dbkey[0]+";"+dbkey[1]:
                     # full encrypt confirmed and authorised
                     for i in [x for x in dbstate[1] if x.endswith(".aegis.txt")]:
-                        reading = open(rootdir+dbloc+i,"r")
-                        encdata = s.aegenc(dbkey,reading.read(-1))
-                        writing = open(rootdir+dbloc+i.rstrip(".txt"),"wb")
+                        reading = open(rootdir+db_loc+i,"r")
+                        encdata = s.db_aeg_enc(dbkey,reading.read(-1))
+                        writing = open(rootdir+db_loc+i.rstrip(".txt"),"wb")
                         writing.write(encdata)
                         reading.close()
                         writing.close()
-                        send2trash(rootdir+dbloc+i)
+                        send2trash(rootdir+db_loc+i)
+
             elif flag in ["key","unlock"]: # decoding keys command
                 if comm == "":
                     dbkey = False
                     dbstate[0] = "password"
                     s.glbentry.configure(show="*")
-                    s.glbentry.bind("<Return>",lambda x:s.dbinterpret(s.glbentry.get()))
+                    s.glbentry.bind("<Return>",lambda x:s.db_interpret(s.glbentry.get()))
                 elif len(comm.split(";")) == 2:
                     dbkey = comm.split(";")[:2]
                 else:
@@ -941,45 +943,45 @@ class MainUI:
                         targetindex = dbstate[1].index(i)
                         i = dbstate[2][targetindex]
                         if dbstate[3][targetindex] in ["text","aegis","folder"]:
-                            i = dbloc+i
+                            i = db_loc+i
                             send2trash(i)
 
             elif flag in ["nf","newf","nfol","newfol","newfolder"]: # create folder
                 if comm not in dbstate[2]:
-                    os.mkdir(dbloc+comm)
+                    os.mkdir(db_loc+comm)
 
             elif flag in ["nt","newt","ntxt","newtxt","newtext"]: # create text file
-                s.dbswitch()
+                s.db_switch_state()
                 if comm == "":
-                    dbloc += "*.txt"
+                    db_loc += "*.txt"
                     s.dbtitle.focus_set()
-                    s.dbloclabel.configure(text=("Editing: "+dbloc))
+                    s.db_loclabel.configure(text=("Editing: "+db_loc))
                 else:
-                    dbloc += comm+".txt"
+                    db_loc += comm+".txt"
                     s.dbtitle.insert("0.0",comm)
-                    s.dbloclabel.configure(text=("Editing: "+dbloc))
+                    s.db_loclabel.configure(text=("Editing: "+db_loc))
 
             elif flag in ["na","newa","naeg","newaeg","newaegis"]: # create aegis file
                 if dbkey != False:
-                    s.dbswitch()
+                    s.db_switch_state()
                     if comm == "":
-                        dbloc += "*.aegis"
+                        db_loc += "*.aegis"
                         s.dbtitle.focus_set()
-                        s.dbloclabel.configure(text=("Editing: "+dbloc))
+                        s.db_loclabel.configure(text=("Editing: "+db_loc))
                     else:
-                        dbloc += comm+".aegis"
+                        db_loc += comm+".aegis"
                         s.dbtitle.insert("0.0",comm)
-                        s.dbloclabel.configure(text=("Editing: "+dbloc))
+                        s.db_loclabel.configure(text=("Editing: "+db_loc))
                 else:
                     s.log("OSI: Key required")
 
             elif flag in ["u","up","b"]: # go up one or more folders
                 if comm == "": comm = 2
                 else: comm = int(comm) + 1
-                dbloc = "/".join(dbloc.split("/")[0:max(-1*(len(dbloc.split("/"))-1), -comm)])+"/"
+                db_loc = "/".join(db_loc.split("/")[0:max(-1*(len(db_loc.split("/"))-1), -comm)])+"/"
 
             elif flag == "root": # reset to root
-                dbloc = DB_DIR
+                db_loc = DB_DIR
 
 
             else: # open aegis/text/folder
@@ -989,28 +991,28 @@ class MainUI:
                 if matchresult != []:
                     matchresult = matchresult[0]
                     matchindex = dbstate[1].index(matchresult)
-                    if os.path.isdir(rootdir+dbloc+matchresult):
-                        dbloc += match_criteria(comm,dbstate[1])[0]+"/"
+                    if os.path.isdir(rootdir+db_loc+matchresult):
+                        db_loc += match_criteria(comm,dbstate[1])[0]+"/"
                     else:
                         if dbstate[3][matchindex] == "text":
                             s.dbtitle.insert(END,matchresult)
-                            dbloc += dbstate[2][matchindex]
-                            ofile = open(rootdir+dbloc, "r")
+                            db_loc += dbstate[2][matchindex]
+                            ofile = open(rootdir+db_loc, "r")
                             lines = ("".join(ofile.readlines())).rstrip("\n")
                             ofile.close()
-                            s.dbloclabel.configure(text=("Editing: "+dbloc))
+                            s.db_loclabel.configure(text=("Editing: "+db_loc))
 
                         elif dbstate[2][matchindex].endswith(".aegis"):
                             matchpath = dbstate[2][matchindex]
                             if dbkey != False:
                                 try:
-                                    dbloc += matchpath
-                                    filedata = open(rootdir+dbloc, "rb")
-                                    filedata = s.aegdec(dbkey,filedata.read(-1))
+                                    db_loc += matchpath
+                                    filedata = open(rootdir+db_loc, "rb")
+                                    filedata = s.db_aeg_dec(dbkey,filedata.read(-1))
                                     title = filedata.split("\n\n")[0][6:]
                                     lines = "\n\n".join(filedata.split("\n\n")[1:])[5:].rstrip("\n")
                                     s.dbtitle.insert(END,title)
-                                    s.dbloclabel.configure(text=("Editing: "+dbloc.rstrip(matchpath)+title+".aegis"))
+                                    s.db_loclabel.configure(text=("Editing: "+db_loc.rstrip(matchpath)+title+".aegis"))
                                 except:
                                     s.log("OSI: Incorrect key")
                                     return
@@ -1019,14 +1021,14 @@ class MainUI:
                                 return
 
                         # presuming that file contents have been gotten, switch to edit mode
-                        s.dbswitch()
+                        s.db_switch_state()
                         # populate text editor
                         s.dbeditor.insert(END,lines)
                         s.log("OSI: File opened")
                         return
 
             if dbstate[0] == "browse":
-                s.dbrefresh()
+                s.db_refresh()
 
         # when editing
         elif dbstate[0] == "edit":
@@ -1036,56 +1038,56 @@ class MainUI:
 
             if flag in ["s","save","b"]: # save and exit file
 
-                if dbloc.endswith(".txt"):
-                    dbloc = "/".join(dbloc.split("/")[:-1])+"/"+filter_chars(s.dbtitle.get("0.0",END),"\\/*<>:?\"|\n")+".txt"
-                    writefile = open(rootdir+dbloc,"w")
+                if db_loc.endswith(".txt"):
+                    db_loc = "/".join(db_loc.split("/")[:-1])+"/"+filter_chars(s.dbtitle.get("0.0",END),"\\/*<>:?\"|\n")+".txt"
+                    writefile = open(rootdir+db_loc,"w")
                     writefile.write("\n".join(s.dbeditor.get("0.0",END).split("\n")[:-1]))
                     writefile.close()
 
-                elif dbloc.endswith(".aegis"):
+                elif db_loc.endswith(".aegis"):
                     # assuming key is already entered, else we would not be editing an aegis file
                     if s.dbtitle.get("0.0",END).rstrip("\n") not in [x for x in dbstate[1] if dbstate[3][dbstate[1].index(x)].startswith("aegis")]:
                         # nonexistant title: new file
-                        dbloc = "/".join(dbloc.split("/")[:-1])+"/"+str(random())+".aegis"
+                        db_loc = "/".join(db_loc.split("/")[:-1])+"/"+str(random())+".aegis"
                     writedata = "title:"+s.dbtitle.get("0.0",END).rstrip("\n")+"\n\ndata:"
                     writedata += "\n".join(s.dbeditor.get("0.0",END).split("\n")[:-1])
-                    writedata = s.aegenc(dbkey,writedata)
-                    writefile = open(dbloc,"wb")
+                    writedata = s.db_aeg_enc(dbkey,writedata)
+                    writefile = open(db_loc,"wb")
                     writefile.write(writedata)
                     writefile.close()
             if flag in ["s","save","b","ns","nosave"]:
                 # clear the editor
                 s.dbeditor.delete("0.0",END)
                 s.dbtitle.delete("0.0",END)
-                s.dbswitch()
-                dbloc = "/".join(dbloc.split("/")[:-1])+"/"
-                s.dbrefresh()
+                s.db_switch_state()
+                db_loc = "/".join(db_loc.split("/")[:-1])+"/"
+                s.db_refresh()
 
-    def aegkeyparse(s,keys,first):
+    def db_parse_aeg_key(s,keys,first):
         endkey = ""
         for i in range(32):
             if first: endkey += (keys[i%2]*32)[i//2]
             if not first: endkey += (keys[(i+1)%2][::-1]*32)[i//2]
         return str.encode(endkey)
 
-    def aegenc(s,keys,data):
+    def db_aeg_enc(s,keys,data):
         data = str.encode(data)
-        for i in range(DB_ENC_LEVEL): data = s.aegenc_single(s.aegkeyparse(keys,True),data)
-        for i in range(DB_ENC_LEVEL): data = s.aegenc_single(s.aegkeyparse(keys,False),data)
+        for i in range(DB_ENC_LEVEL): data = s.db_aeg_enc_single(s.db_parse_aeg_key(keys,True),data)
+        for i in range(DB_ENC_LEVEL): data = s.db_aeg_enc_single(s.db_parse_aeg_key(keys,False),data)
         return data
 
-    def aegdec(s,keys,data):
-        for i in range(DB_ENC_LEVEL): data = s.aegdec_single(s.aegkeyparse(keys,False),data)
-        for i in range(DB_ENC_LEVEL): data = s.aegdec_single(s.aegkeyparse(keys,True),data)
+    def db_aeg_dec(s,keys,data):
+        for i in range(DB_ENC_LEVEL): data = s.db_aeg_dec_single(s.db_parse_aeg_key(keys,False),data)
+        for i in range(DB_ENC_LEVEL): data = s.db_aeg_dec_single(s.db_parse_aeg_key(keys,True),data)
         data = data.decode()
         return data
 
-    def aegenc_single(s,key,data):
+    def db_aeg_enc_single(s,key,data):
         cipher = AES.new(key, AES.MODE_EAX)
         ciphertext, tag = cipher.encrypt_and_digest(data)
         return (cipher.nonce+tag+ciphertext)
 
-    def aegdec_single(s,key,data):
+    def db_aeg_dec_single(s,key,data):
         nonce = data[:16]
         tag = data[16:32]
         ciphertext = data[32:]
@@ -1093,36 +1095,36 @@ class MainUI:
         output = cipher.decrypt_and_verify(ciphertext, tag)
         return output
 
-    def dbswitch(s):
-        global dbstate, dbWidgets
+    def db_switch_state(s):
+        global dbstate, db_widgets
         if dbstate[0] == "browse":
-            [x.wrapper.destroy() for x in dbWidgets]
-            dbWidgets = []
+            [x.wrapper.destroy() for x in db_widgets]
+            db_widgets = []
             s.dbeditorframe.pack(fill=BOTH)
             dbstate[0] = "edit"
         elif dbstate[0] == "edit":
             s.dbeditorframe.pack_forget()
             dbstate[0] = "browse"
 
-    def dbfocusedit(s,event):
+    def db_switch_focus(s,event):
         s.dbeditor.focus_set()
         return "break"
-    def dbfocusentry(s,event):
+    def db_focus_entry(s,event):
         s.glbentry.focus_set()
         return "break"
 
-    def dbrefresh(s):
+    def db_refresh(s):
         global dbstate
         # wipe dbstate
         dbstate = [dbstate[0],[],[],[]]
         # wipe current widgets
-        [x.wrapper.destroy() for x in dbWidgets]
-        s.dbloclabel.configure(text="Browsing: "+dbloc)
-        dbtotal = os.listdir(rootdir+dbloc)
+        [x.wrapper.destroy() for x in db_widgets]
+        s.db_loclabel.configure(text="Browsing: "+db_loc)
+        dbtotal = os.listdir(rootdir+db_loc)
         dbtext = [x for x in dbtotal if x.endswith(".txt")] # files
         sorted(dbtext, key=str.lower)
         dbaegis = [x for x in dbtotal if x.endswith(".aegis")]
-        dbfolders = [x for x in dbtotal if os.path.isdir(rootdir+dbloc+x)] # folders
+        dbfolders = [x for x in dbtotal if os.path.isdir(rootdir+db_loc+x)] # folders
         sorted(dbfolders, key=str.lower)
 
         # run through folders
@@ -1130,7 +1132,7 @@ class MainUI:
             dbstate[1].append(dbfolders.pop(0))
             dbstate[2].append(dbstate[1][-1])
             dbstate[3].append("folder")
-            dbWidgets.append(dbLine(dbstate[1][-1], len(dbstate[1])-1))
+            db_widgets.append(DbLine(dbstate[1][-1], len(dbstate[1])-1))
 
         # run through aegis
         tempshow = []
@@ -1143,8 +1145,8 @@ class MainUI:
                 tempmap.append("aeg_nokey")
             else:
                 try:
-                    filedata = open(rootdir+dbloc+dbaegis[0], "rb")
-                    filedata = s.aegdec(dbkey,filedata.read(-1))
+                    filedata = open(rootdir+db_loc+dbaegis[0], "rb")
+                    filedata = s.db_aeg_dec(dbkey,filedata.read(-1))
                     title = filedata.split("\n\n")[0][6:]
                     tempshow.append(title)
                     temppath.append(dbaegis.pop(0))
@@ -1159,19 +1161,20 @@ class MainUI:
             dbstate[1].append(tempshow.pop(curindex))
             dbstate[2].append(temppath.pop(curindex))
             dbstate[3].append(tempmap.pop(curindex))
-            dbWidgets.append(dbLine(dbstate[2][-1], len(dbstate[1])-1))
+            db_widgets.append(DbLine(dbstate[2][-1], len(dbstate[1])-1))
 
         # run through text
         while len(dbtext) > 0:
             dbstate[1].append(dbtext.pop(0).rstrip(".txt"))
             dbstate[2].append(dbstate[1][-1]+".txt")
             dbstate[3].append("text")
-            dbWidgets.append(dbLine(dbstate[2][-1], len(dbstate[1])-1))
+            db_widgets.append(DbLine(dbstate[2][-1], len(dbstate[1])-1))
 
 
 
 #################################### DOWNLOAD DEFS #####################################################################
-    def dlinterpret(s,entry):
+
+    def dl_interpret(s,entry):
         s.glbentry.delete("0",len(s.glbentry.get())) # empty the entry field
 
         if entry.startswith("d ") and is_int(entry.split()[1]): # if entry is delete command
@@ -1180,32 +1183,32 @@ class MainUI:
 
         elif entry.startswith("pg "):
             if is_int(entry[3:]):
-                s.dl_page = int(int(entry[3:]) - 1) % ceil(len(mpWidgets)/MP_PAGE_SIZE)
+                s.dl_page = int(int(entry[3:]) - 1) % ceil(len(mp_widgets)/MP_PAGE_SIZE)
 
         elif entry == "pgn":
-            s.dl_page = (s.dl_page + 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+            s.dl_page = (s.dl_page + 1) % ceil(len(dl_widgets)/DL_PAGE_SIZE)
 
         elif entry == "pgp":
-            s.dl_page = (s.dl_page - 1) % ceil(len(dlWidgets)/DL_PAGE_SIZE)
+            s.dl_page = (s.dl_page - 1) % ceil(len(dl_widgets)/DL_PAGE_SIZE)
 
         elif entry == "dl":
             # go through all open widgets and tell them to ready
-            for dl in dlWidgets:
+            for dl in dl_widgets:
                 dl.ready()
-            for dl in dlWidgets:
-                del dlWidgets[dlWidgets.index(dl)]
+            for dl in dl_widgets:
+                del dl_widgets[dl_widgets.index(dl)]
             DLMAN.download()
 
         elif entry.startswith("yt "): # yt single song
             query = "+".join(entry[3:].split())
             res = requests.get("https://www.googleapis.com/youtube/v3/search?part=snippet&q="+query+"&type=video&key="+settings["yt_api_key"])
             data = res.json()["items"][:DL_ALTERNATIVES]
-            dlWidgets.append(YtSingle([s.yt_get_track_data(x) for x in data]))
+            dl_widgets.append(YtSingle([s.yt_get_track_data(x) for x in data]))
 
         elif entry.startswith(("album ")) and gplogin != False:
             search_results = s.gpsearch_album(entry[6:])
             if search_results != False:
-                dlWidgets.append(GpAlbum(search_results))
+                dl_widgets.append(GpAlbum(search_results))
 
         elif entry.startswith(("http://","https://","www.","youtube.com","play.google")):
             # if true, start parsing URL
@@ -1240,7 +1243,7 @@ class MainUI:
             s.log("OSI: URL parsed")
 
             if type == "gp track":
-                dlWidgets.append(GpTrack([s.gp_get_track_data(api.get_track_info(id))]))
+                dl_widgets.append(GpTrack([s.gp_get_track_data(api.get_track_info(id))]))
 
             if type == "gp playlist":
                 search_result = api.get_shared_playlist_contents(id)
@@ -1251,14 +1254,14 @@ class MainUI:
                             str(web_result["num_tracks"]),
                             filter_(web_result["description"]),
                           ]
-                dlWidgets.append(GpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
+                dl_widgets.append(GpPlaylist([s.gp_get_track_data(x["track"]) for x in search_result],pl_info))
 
             if type == "gp album":
-                dlWidgets.append(GpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
+                dl_widgets.append(GpAlbum([s.gp_get_album_data(api.get_album_info(id, False))]))
 
             if type == "yt track":
                 trackres = requests.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id="+id+"&key="+settings["yt_api_key"])
-                dlWidgets.append(YtSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
+                dl_widgets.append(YtSingle([s.yt_get_track_data(trackres.json()["items"][0])]))
 
             if type == "yt playlist":
                 plres = requests.get("https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id="+id+"&key="+settings["yt_api_key"])
@@ -1275,29 +1278,28 @@ class MainUI:
                         initial_trackdata += next_trackres.json()["items"]
                         try: pagetoken = next_trackres.json()["nextPageToken"]
                         except: break
-                dlWidgets.append(YtMulti([s.yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
-
+                dl_widgets.append(YtMulti([s.yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
 
         elif entry != "" and gplogin != False:
             # not a command or URL: default behaviour is to search GP for single track
             search_results = s.gpsearch_track(entry)
             if search_results != False:
-                dlWidgets.append(GpTrack(search_results))
+                dl_widgets.append(GpTrack(search_results))
 
-        # decide which dlWidgets to show
-        for i in dlWidgets:
+        # decide which dl_widgets to show
+        for i in dl_widgets:
             i.hide()
 
-        for i in range((s.dl_page) * DL_PAGE_SIZE, min(len(dlWidgets), ((s.dl_page + 1) * DL_PAGE_SIZE))):
-            dlWidgets[i].show()
+        for i in range((s.dl_page) * DL_PAGE_SIZE, min(len(dl_widgets), ((s.dl_page + 1) * DL_PAGE_SIZE))):
+            dl_widgets[i].show()
 
         # update page handler
-        s.dl_pageHandler.set_page(s.dl_page+1, len(dlWidgets))
+        s.dl_pageHandler.set_page(s.dl_page+1, len(dl_widgets))
 
     def dl_delete(s, object):
-        dlWidgets.pop(dlWidgets.index(object)).wrapper.destroy()
+        dl_widgets.pop(dl_widgets.index(object)).wrapper.destroy()
 
-    def gpbackgroundlogin(s):
+    def db_login_gp(s):
         global Mobileclient, Webclient
         from gmusicapi import Mobileclient, Webclient
         global gplogin
@@ -1441,7 +1443,7 @@ class MainUI:
             # write to file
             wfile.write(response.content)
 
-    def gptagify(s,songpath,tinfo):
+    def dl_tagify_mp3(s,songpath,tinfo):
         tagfile = EasyMP3(songpath)
         tagfile["title"] = tinfo[0]
         tagfile["artist"] = tinfo[1]
@@ -1454,7 +1456,7 @@ class MainUI:
         tagfile["genre"] = tinfo[9]
         tagfile.save()
 
-    def dlalbumartify(s,songpath,imagepath):
+    def dl_albumart_mp3(s,songpath,imagepath):
         audio = MP3(songpath, ID3=ID3)
         try:audio.add_tags()
         except:pass
@@ -1469,30 +1471,30 @@ class MainUI:
 
     #################################### WORK DEFS #####################################################################
 
-    def seinterpret(s,entry):
+    def se_interpret(s,entry):
         s.log("Under construction")
 
 
 
     #################################### SETTINGS DEFS #####################################################################
 
-    def stinterpret(s,entry):
+    def st_interpret(s,entry):
         pass
 
-    def promptSetting(s,key,type):
+    def st_prompt_setting(s,key,type):
         if type == "file":
             newval = tk.filedialog.askopenfilename(initialdir="/".join(settings[key].split("/")[:-1]))
         elif type == "folder":
             newval = tk.filedialog.askdirectory(initialdir="/".join(settings[key].split("/")[:-2]))+"/"
         if newval not in ["","/"]:
             settings[key] = newval
-            s.updateSettings()
+            s.st_update_settings()
 
-    def switchSetting(s,key):
+    def st_switch_setting(s,key):
         settings[key] = str(settings[key] == "False")
-        s.updateSettings()
+        s.st_update_settings()
 
-    def cycleSetting(s,key,optionskey): # cycle through a list of options, setting key to the value that comes after the current one
+    def st_cycle_setting(s,key,optionskey): # cycle through a list of options, setting key to the value that comes after the current one
         options = settings[optionskey].split(";")
         current = settings[key]
         if current in options:
@@ -1500,9 +1502,9 @@ class MainUI:
         else:
             next = options[0]
         settings[key] = next
-        s.updateSettings()
+        s.st_update_settings()
 
-    def updateSettings(s):
+    def st_update_settings(s):
         for i in s.StWidgets: i.update()
         export_settings()
 
@@ -1530,8 +1532,6 @@ class PageHandler:
         s.current_page = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, width=10, text="PAGE 1")
         s.current_page.pack(side=TOP)
 
-
-
     def set_page(s, new, widget_count):
         if widget_count > s.page_size and not s.mainframe.winfo_ismapped():
             s.mainframe.pack(side=BOTTOM)
@@ -1544,6 +1544,7 @@ class PageHandler:
 
     def next(s):
         s.interpreter("pgn")
+
 
 class DownloadManager:
     def __init__(s):
@@ -1639,7 +1640,7 @@ class DownloadManager:
             s.count_ytcomplete = 0
             s.count_yttotal = 0
             s.state = "waiting"
-            root.after(200,lambda: OSI.mprefresh())
+            root.after(200,lambda: OSI.mp_refresh())
             OSI.log("OSI: All downloads finished")
         else: # if idle but converting: wait a bit longer
             root.after(100,s.process_downloads)
@@ -1693,9 +1694,9 @@ class DownloadManager:
                         os.rename(i,name)
                         imagepath = "/".join(name.split("/")[:-1])+"/"+id+".png"
                         s.generate_image_data([track]).save(imagepath)
-                        OSI.dlalbumartify(name, imagepath)
+                        OSI.dl_albumart_mp3(name, imagepath)
                         file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
-                        OSI.gptagify(name, file_data)
+                        OSI.dl_tagify_mp3(name, file_data)
                         s.count_convtotal -= 1
                         s.refreshvalues()
                         return
@@ -1739,8 +1740,8 @@ class DownloadManager:
                     OSI.dl_url2file(track[3],(folderpath+"/albumArt.png"))
                 except:
                     OSI.dl_url2file(result.get("albumArtRef")[0].get("url"),(folderpath+"/albumArt.png"))
-            OSI.dlalbumartify(songpath,folderpath+"/albumArt.png")
-            OSI.gptagify(songpath,track)
+            OSI.dl_albumart_mp3(songpath,folderpath+"/albumArt.png")
+            OSI.dl_tagify_mp3(songpath,track)
 
         s.idle = True
 
@@ -1765,7 +1766,7 @@ class DlWidget: # ABSTRACT
         s.mainframe.pack(side=TOP,fill=X,padx=2,pady=2)
 
     def __str__(s):
-        return "dbLine (INTERFACE!)"
+        return "DbLine (INTERFACE!)"
 
     def generate(s):
         # every generate function should at least destroy the mainframe and replace it with its own
@@ -2147,14 +2148,14 @@ class StWidget:
             s.curlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON,fg=COLOR_TEXT,text=settings[key],font=FONT_ITALIC,width=60)
             s.curlabel.grid(column=0,row=1)
         if type in ["file","folder"]:
-            s.changebutton = tk.Button(s.mainframe,text="CHANGE", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.promptSetting(key,type))
+            s.changebutton = tk.Button(s.mainframe,text="CHANGE", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.st_prompt_setting(key,type))
             s.changebutton.grid(column=1,row=0,rowspan=2,sticky="NESW")
         elif type == "bool":
-            s.switchbutton = tk.Button(s.mainframe,text=settings[key], bg=COLOR_BUTTON,width=10,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.switchSetting(key))
+            s.switchbutton = tk.Button(s.mainframe,text=settings[key], bg=COLOR_BUTTON,width=10,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,fg=COLOR_TEXT,border=0,font=FONT_M,command=lambda: OSI.st_switch_setting(key))
             s.switchbutton.grid(column=1,row=0)
         elif type == "list":
             s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=COLOR_BUTTON,activeforeground=COLOR_TEXT,activebackground=COLOR_BG_3,width=10,fg=COLOR_TEXT,border=0,font=FONT_M,command=None)
-            s.nextbutton.configure(command=lambda: [OSI.cycleSetting(key,altkey)])
+            s.nextbutton.configure(command=lambda: [OSI.st_cycle_setting(key,altkey)])
             # list should include a method that does something with the setting
             # some setter, for example
             s.nextbutton.grid(column=1,row=0, rowspan=2,sticky="NESW")
@@ -2168,7 +2169,7 @@ class StWidget:
             s.switchbutton.configure(text=settings[s.key])
 
 
-class dbLine: # !!! move to below music classes when done
+class DbLine: # !!! move to below music classes when done
     def __init__(s,path, indx):
         s.isfile = path.endswith((".txt",".aegis"))
         s.isaegis = path.endswith(".aegis")
@@ -2202,12 +2203,12 @@ class dbLine: # !!! move to below music classes when done
         if s.isfile:
             if s.isaegis: s.typelabel.configure(text="AEGIS")
             else: s.typelabel.configure(text="TEXT")
-            s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="DEL",width=6,relief='ridge',bd=0,activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=lambda: OSI.dbinterpret("d "+str(s.indexval+1)))
+            s.delbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="DEL",width=6,relief='ridge',bd=0,activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=lambda: OSI.db_interpret("d "+str(s.indexval+1)))
             s.delbutton.pack(side=RIGHT)
         else:
             s.typelabel.configure(text="FOLDER")
         if dbstate[3][s.indexval] not in ["aeg_nokey","aeg_wrongkey"]:
-            s.openbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OPEN",width=6,relief='ridge',bd=0,activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=lambda: OSI.dbinterpret("o "+str(s.indexval+1)))
+            s.openbutton = tk.Button(s.mainframe,bg=COLOR_BUTTON,fg=COLOR_TEXT,font=FONT_M,text="OPEN",width=6,relief='ridge',bd=0,activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=lambda: OSI.db_interpret("o "+str(s.indexval+1)))
             s.openbutton.pack(side=RIGHT)
         s.mainframe.pack(side=TOP,fill=X,padx=1,pady=1)
         s.wrapper.pack(side=TOP,pady=(2,0),padx=10,fill=X)
@@ -2233,9 +2234,9 @@ class pliLine:
             s.plitextstring += " "+(s.info[3]+" "*5)[:5]
         s.plitext = tk.Label(s.plisframe,font=FONT_M,text=s.plitextstring,bg=COLOR_BG_2,fg=COLOR_TEXT)
         s.plitext.pack(side=LEFT,anchor=W)
-        s.pliplaybtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="P",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mpinterpret("pl "+s.info[0]))
-        s.pliloadbtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="L",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mpinterpret("pll "+s.info[0]))
-        s.plisavebtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="S",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mpinterpret("plsave "+s.info[0]))
+        s.pliplaybtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="P",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mp_interpret("pl "+s.info[0]))
+        s.pliloadbtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="L",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mp_interpret("pll "+s.info[0]))
+        s.plisavebtn = tk.Button(s.plisframe,font=FONT_M,pady=0,borderwidth=0,text="S",bg=COLOR_BG_1,fg=COLOR_TEXT,command=lambda:OSI.mp_interpret("plsave "+s.info[0]))
         s.plisavebtn.pack(side=RIGHT,anchor=W)
         s.pliloadbtn.pack(side=RIGHT,anchor=W)
         s.pliplaybtn.pack(side=RIGHT,anchor=W)
@@ -2244,8 +2245,8 @@ class pliLine:
 class MpWidget:
     def __init__(s,path):
         s.path = path
-        musicPaths.append(s.path)
-        s.index = musicPaths.index(s.path)
+        music_paths.append(s.path)
+        s.index = music_paths.index(s.path)
 
         # first, getting data from path
         temp = s.path.split("\\")[-3:]
@@ -2270,7 +2271,7 @@ class MpWidget:
         s.buttonframe.pack_propagate(0)
         s.destroybutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=s.remove,text="X",width=2,relief="flat")
         s.destroybutton.pack(side=RIGHT,pady=(0,0))
-        s.playbutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=lambda:OSI.mpplay([s.path]),text="P",width=2,relief="flat")
+        s.playbutton = tk.Button(s.buttonframe,font=FONT_M,bg=COLOR_BG_3,fg=COLOR_TEXT,command=lambda:OSI.mp_play([s.path]),text="P",width=2,relief="flat")
         s.playbutton.pack(side=RIGHT,padx=(0,0),pady=(0,0))
         s.buttonframe.pack(side=RIGHT,pady=(0,0))
 
@@ -2292,7 +2293,7 @@ class MpWidget:
 
     def update(s):
         temp = str(s.index)[:]
-        s.index = mpWidgets.index(s)
+        s.index = mp_widgets.index(s)
         if temp != s.index:
             s.indexlabel.configure(text=(("00"+str(int(s.index)+1))[-2:]))
             if int(s.index%2==0):
@@ -2300,13 +2301,13 @@ class MpWidget:
             else:
                 for i in s.widgetlist:i.configure(background=COLOR_BG_1)
 
-    def remove(s, mass_remove=False): # on mass remove, it is assumed that updating tasks will be performed afterwards, so OSI.mpupdate need not be called
+    def remove(s, mass_remove=False): # on mass remove, it is assumed that updating tasks will be performed afterwards, so OSI.mp_update_widgets need not be called
         s.update()
-        del musicPaths[s.index]
+        del music_paths[s.index]
         s.mainframe.destroy()
-        del mpWidgets[s.index]
+        del mp_widgets[s.index]
         if not(mass_remove):
-            OSI.mpupdate()
+            OSI.mp_update_widgets()
 
 
 # LAUNCH PREP
@@ -2334,28 +2335,28 @@ root.iconbitmap("etc/osi.ico")
 if settings["set_showscrollbar"]=="True":
     root.after(50,lambda : OSI.scrollcanvas.config(scrollregion=OSI.scrollcanvas.bbox("all")))
 
-OSI.rootframe.bind("<FocusIn>",lambda x: OSI.attemptMaximise())
-root.bind("<Alt-v>",lambda x: OSI.attemptMinimise())
+OSI.rootframe.bind("<FocusIn>",lambda x: OSI.attempt_maximise())
+root.bind("<Alt-v>",lambda x: OSI.attempt_minimise())
 
 # OSI operations
 bindlist = [root,OSI.glbentry,OSI.dbeditor,OSI.dbtitle]
 for i in bindlist:
-    i.bind("[",OSI.tableft)
-    i.bind("]",OSI.tabright)
+    i.bind("[",OSI.tab_left)
+    i.bind("]",OSI.tab_right)
 
 # mp
 
 OSI.mp_pageHandler = PageHandler("mp",MP_PAGE_SIZE)
 
-OSI.mprefresh()
+OSI.mp_refresh()
 
 # db
 OSI.glbentry.bind("<Key>", lambda x: root.after(10,OSI.responsive))
-OSI.dbtitle.bind("<Tab>", OSI.dbfocusedit)
-OSI.glbentry.bind("<Tab>", OSI.dbfocusedit)
-OSI.dbeditor.bind("<Tab>", OSI.dbfocusentry)
+OSI.dbtitle.bind("<Tab>", OSI.db_switch_focus)
+OSI.glbentry.bind("<Tab>", OSI.db_switch_focus)
+OSI.dbeditor.bind("<Tab>", OSI.db_focus_entry)
 
-OSI.dbrefresh()
+OSI.db_refresh()
 
 OSI.log("OSI: MP and DB loaded")
 
@@ -2363,7 +2364,7 @@ api = None # this is imported asynchronously due to long delay (.6 seconds)
 webapi = None
 gplogin = False
 gppass = settings["gppass"]
-threading.Thread(target=OSI.gpbackgroundlogin).start()
+threading.Thread(target=OSI.db_login_gp).start()
 
 # settings
 OSI.StWidgets = [StWidget("searchdir","Music folder",0,0,"folder"),
