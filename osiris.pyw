@@ -123,8 +123,7 @@ def update():  # function that gets called every second to update assorted
             OSI.mpfoobarplaypause.configure(bg=bordercolor, fg=contrast)
             foobarprev = foobarnow[:]
         root.after(1000, update)
-    except Exception as e:
-        # print(e)
+    except OSError:
         root.after(1000, update)
 
 
@@ -165,7 +164,7 @@ for i in bindlist:
 
 # mp
 
-OSI.mp_pageHandler = PageHandler(OSI, "mp", MP_PAGE_SIZE)
+OSI.mp_page_handler = PageHandler(OSI, "mp", MP_PAGE_SIZE)
 
 OSI.mp_refresh()
 

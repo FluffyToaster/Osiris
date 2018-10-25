@@ -69,10 +69,12 @@ class MpWidget:
         s.widgetlist = [s.mainframe, s.indexlabel, s.titlelabel, s.artistlabel, s.albumlabel, s.buttonframe]
         s.altlist = [s.destroybutton, s.playbutton]
         if int(s.index % 2 == 0):
-            for i in s.widgetlist: i.configure(bg=COLOR_BG_2)
+            for i in s.widgetlist:
+                i.configure(bg=COLOR_BG_2)
             # for i in s.altlist:i.configure(bg=COLOR_BG_1)
         else:
-            for i in s.widgetlist: i.configure(bg=COLOR_BG_1)
+            for i in s.widgetlist:
+                i.configure(bg=COLOR_BG_1)
             # for i in s.altlist:i.configure(bg=COLOR_BG_2)
 
     def show(s):
@@ -88,15 +90,18 @@ class MpWidget:
         if temp != s.index:
             s.indexlabel.configure(text=(("00" + str(int(s.index) + 1))[-2:]))
             if int(s.index % 2 == 0):
-                for i in s.widgetlist: i.configure(background=COLOR_BG_2)
+                for i in s.widgetlist:
+                    i.configure(background=COLOR_BG_2)
             else:
-                for i in s.widgetlist: i.configure(background=COLOR_BG_1)
+                for i in s.widgetlist:
+                    i.configure(background=COLOR_BG_1)
 
-    def remove(s,
-               mass_remove=False):  # on mass remove, it is assumed that updating tasks will be performed afterwards, so s.osi.mp_update_widgets need not be called
+    def remove(s, mass_remove=False):
+        # on mass remove, it is assumed that updating tasks will be performed afterwards
+        # so s.osi.mp_update_widgets need not be called
         s.update()
         del s.osi.music_paths[s.index]
         s.mainframe.destroy()
         del s.osi.mp_widgets[s.index]
-        if not (mass_remove):
+        if not mass_remove:
             s.osi.mp_update_widgets()

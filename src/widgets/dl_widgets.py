@@ -1,19 +1,176 @@
 from src.settings import *
+from src.utilities import *
 
 import tkinter as tk
 from tkinter import LEFT, RIGHT, TOP, CENTER, X, Y
+from mutagen.mp3 import EasyMP3, MP3
+from mutagen.id3 import ID3, APIC
 from io import BytesIO
+import os
 
 # third party libraries
 import requests
 from PIL import Image, ImageTk  # use Pillow for python 3.x
 
 
+# UTILITY FUNCTIONS
+# find the borders of an image
+def findborders(image):
+    row = 0
+    col = 0
+    imgwidth = image.size[0]
+    imgheight = image.size[1]
+    for row in range(int(imgheight / 4)):  # look through top quarter of image
+        blacks = 0
+        for col in range(imgwidth):
+            (r, g, b) = image.getpixel((col, row))
+            if r + g + b < DL_CROP_THRESH:
+                blacks += 1
+        if imgwidth - blacks > 10:  # if row is not primarily black, halt search here
+            break
+    bordertop = row
+
+    for row in reversed(range(3 * int(imgheight / 4), imgheight)):  # look through bottom quarter of image
+        blacks = 0
+        for col in range(imgwidth):
+            (r, g, b) = image.getpixel((col, row))
+            if r + g + b < DL_CROP_THRESH:
+                blacks += 1
+        if imgwidth - blacks > 10:  # if row is not primarily black, halt search here
+            break
+    borderbottom = row
+
+    for col in (range(int(imgwidth / 4))):  # look through left of the image
+        blacks = 0
+        for row in range(imgheight):
+            (r, g, b) = image.getpixel((col, row))
+            if r + g + b < DL_CROP_THRESH:
+                blacks += 1
+        if imgheight - blacks > 10:  # if row is not primarily black, halt search here
+            break
+    borderleft = col
+
+    for col in reversed(range(3 * int(imgwidth / 4), imgwidth)):  # look through bottom quarter of image
+        blacks = 0
+        for row in range(imgheight):
+            (r, g, b) = image.getpixel((col, row))
+            if r + g + b < DL_CROP_THRESH:
+                blacks += 1
+        if imgheight - blacks > 10:  # if row is not primarily black, halt search here
+            break
+    borderright = col
+    return borderleft, bordertop, borderright, borderbottom
+
+
+# get the track data of a YT track
+def yt_get_track_data(track):
+    try:
+        vid_id = track["contentDetails"]["videoId"]
+    except (KeyError, TypeError):
+        try:
+            vid_id = track["id"]["videoId"]
+        except (KeyError, TypeError):
+            vid_id = track["id"]
+
+    return [filter_(str(track["snippet"]["title"])),
+            filter_(str(track["snippet"]["channelTitle"])),
+            str(track["snippet"]["thumbnails"]["high"]["url"]),
+            str(vid_id)]
+
+
+def gp_get_track_data(track):
+    return [filter_(str(track.get("title"))),
+            filter_(str(track.get("artist"))),
+            filter_(str(track.get("album"))),
+            str(track.get("albumArtRef")[0].get("url")),
+            filter_(str(track.get("trackNumber"))),
+            filter_(str(track.get("storeId"))),
+            filter_(str(track.get("composer"))),
+            filter_(str(track.get("year"))),
+            filter_(str(track.get("beatsPerMinute"))),
+            filter_(str(track.get("genre")))]
+
+
+def gp_get_album_data(album):
+    return [filter_(str(album.get("name"))),
+            filter_(str(album.get("artist"))),
+            filter_(str(album.get("year"))),
+            str(album.get("albumArtRef")),
+            filter_(str(album.get("albumId"))),
+            filter_(str(album.get("explicitType")))]
+
+
+def dl_url2file(url, filename):
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    # open in binary mode
+    with open(filename, "wb") as wfile:
+        # get request
+        response = requests.get(url)
+        # write to file
+        wfile.write(response.content)
+
+
+def dl_tagify_mp3(songpath, tinfo):
+    tagfile = EasyMP3(songpath)
+    tagfile["title"] = tinfo[0]
+    tagfile["artist"] = tinfo[1]
+    tagfile["albumartist"] = tinfo[1]
+    tagfile["album"] = tinfo[2]
+    tagfile["tracknumber"] = ('00' + str(tinfo[4]))[-2:]
+    tagfile["composer"] = tinfo[6]
+    tagfile["date"] = tinfo[7]
+    tagfile["bpm"] = tinfo[8]
+    tagfile["genre"] = tinfo[9]
+    tagfile.save()
+
+
+def dl_albumart_mp3(songpath, imagepath):
+    audio = MP3(songpath, ID3=ID3)
+    try:
+        audio.add_tags()
+    except:
+        pass
+    audio.tags.add(APIC(
+        encoding=3,  # 3 is for utf-8
+        mime='image/png',  # image/jpeg or image/png
+        type=3,  # 3 is for the cover image
+        desc=u'Cover',
+        data=open(imagepath, 'rb').read()))
+    audio.save()
+
+
+def get_correct_channel_name(track):
+    trackres = requests.get(
+        "https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + track[3] + "&key=" + settings[
+            "yt_api_key"])
+    actual_channel = trackres.json()["items"][0]["snippet"]["channelTitle"]
+    return actual_channel
+
+
+def generate_image_data(tracklist, _index=None):
+    if _index is not None:
+        curinfo = tracklist[_index]
+    else:
+        curinfo = tracklist[0]
+    image = Image.open(BytesIO(requests.get(curinfo[2]).content))
+    borders = findborders(image)
+    image = image.crop(borders)  # crop image to borders
+    maincolor = color_from_image(image)  # get the prevalent color
+    background = Image.new("RGB", (480, 480), maincolor)
+    background.paste(image, (borders[0], 60 + borders[1]))
+    if _index is not None:
+        tracklist[_index].append(background.copy())
+        tracklist[_index].append(maincolor)
+    else:
+        return background.copy()
+
+
 class DlWidget:  # ABSTRACT
-    def __init__(s):
+    def __init__(s, osi):
         # root superclass constructor has the elements shared by all possible variations of downloader widget
         # create root window with basic border
-        s.wrapper = tk.Frame(OSI.dlframe, height=54)
+        s.osi = osi
+        s.wrapper = tk.Frame(s.osi.dlframe, height=54)
         s.mainframe = tk.Frame(s.wrapper,
                                bg=COLOR_BUTTON)  # placeholder mainframe that is replaced by the generate function
         s.mainframe.pack(side=TOP, fill=X, padx=2, pady=2)
@@ -53,8 +210,8 @@ class DlWidget:  # ABSTRACT
 
 
 class GpLine(DlWidget):
-    def __init__(s):
-        DlWidget.__init__(s)
+    def __init__(s, osi):
+        DlWidget.__init__(s, osi)
 
     def __str__(s):
         return "GpLine (INTERFACE!)"
@@ -62,8 +219,8 @@ class GpLine(DlWidget):
 
 # noinspection PyMethodParameters,PyMethodParameters
 class GpTrack(GpLine):
-    def __init__(s, tracklist):
-        GpLine.__init__(s)
+    def __init__(s, osi, tracklist):
+        GpLine.__init__(s, osi)
         s.tracklist = tracklist
         s.multi_index = 0  # which song to select in the tracklist
         s.generate()
@@ -108,7 +265,7 @@ class GpTrack(GpLine):
         s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
                                 relief='ridge', bd=2, activebackground="#c41313", activeforeground=COLOR_TEXT,
                                 highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: OSI.dl_delete(s))
+                                command=lambda: s.osi.dl_delete(s))
         s.delbutton.pack(side=RIGHT, padx=(0, 8))
         s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
                                   relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
@@ -128,7 +285,7 @@ class GpTrack(GpLine):
                     s.GpTrackMulti(s, s.tracklist[i], i)
 
     def ready(s):  # send relevant data to DownloadManager
-        DLMAN.queue_gp([s.tracklist[s.multi_index]])
+        s.osi.DLMAN.queue_gp([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
 
     # noinspection PyMethodParameters,PyMethodParameters
@@ -159,8 +316,8 @@ class GpTrack(GpLine):
 
 # noinspection PyMethodParameters,PyMethodParameters,PyMethodParameters
 class GpAlbum(GpLine):
-    def __init__(s, albumlist):
-        GpLine.__init__(s)
+    def __init__(s, osi, albumlist):
+        GpLine.__init__(s, osi)
         s.albumlist = albumlist
         s.multi_index = 0
 
@@ -170,8 +327,8 @@ class GpAlbum(GpLine):
         return "GpAlbum"
 
     def ready(s):  # send relevant data to DownloadManager
-        album_tracks = api.get_album_info(s.albumlist[s.multi_index][4])["tracks"]
-        DLMAN.queue_gp([OSI.gp_get_track_data(x) for x in album_tracks])
+        album_tracks = s.osi.api.get_album_info(s.albumlist[s.multi_index][4])["tracks"]
+        s.osi.DLMAN.queue_gp([s.osi.gp_get_track_data(x) for x in album_tracks])
         s.wrapper.destroy()
 
     def generate(s):
@@ -217,7 +374,7 @@ class GpAlbum(GpLine):
         s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
                                 relief='ridge', bd=2, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
                                 highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: OSI.dl_delete(s))
+                                command=lambda: s.osi.dl_delete(s))
         s.delbutton.pack(side=RIGHT, padx=(0, 8))
         s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
                                   relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
@@ -261,8 +418,8 @@ class GpAlbum(GpLine):
 
 # noinspection PyMethodParameters,PyMethodParameters
 class GpPlaylist(GpLine):
-    def __init__(s, tracklist, plinfo):
-        GpLine.__init__(s)
+    def __init__(s, osi, tracklist, plinfo):
+        GpLine.__init__(s, osi)
         s.plinfo = plinfo
         s.tracklist = tracklist
         s.generate()
@@ -271,7 +428,7 @@ class GpPlaylist(GpLine):
         return "GpPlaylist"
 
     def ready(s):  # send relevant data to DownloadManager
-        DLMAN.queue_gp(s.tracklist)
+        s.osi.DLMAN.queue_gp(s.tracklist)
         s.wrapper.destroy()
 
     def generate(s):
@@ -306,7 +463,7 @@ class GpPlaylist(GpLine):
         s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
                                 relief='ridge', bd=2, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
                                 highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: OSI.dl_delete(s))
+                                command=lambda: s.osi.dl_delete(s))
         s.delbutton.pack(side=RIGHT, padx=(0, 8))
         s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
                                   relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
@@ -316,8 +473,8 @@ class GpPlaylist(GpLine):
 
 # noinspection PyMethodParameters
 class YtLine(DlWidget):
-    def __init__(s):
-        DlWidget.__init__(s)
+    def __init__(s, osi):
+        DlWidget.__init__(s, osi)
 
     def __str__(s):
         return "YtLine (INTERFACE!)"
@@ -325,8 +482,8 @@ class YtLine(DlWidget):
 
 # noinspection PyMethodParameters,PyMethodParameters
 class YtSingle(YtLine):
-    def __init__(s, tracklist):
-        YtLine.__init__(s)
+    def __init__(s, osi, tracklist):
+        YtLine.__init__(s, osi)
         s.tracklist = tracklist
         s.multi_index = 0  # which song to select in the tracklist
         s.generate()
@@ -335,13 +492,13 @@ class YtSingle(YtLine):
         return "YtSingle"
 
     def ready(s):  # send relevant data to DownloadManager
-        DLMAN.queue_yt([s.tracklist[s.multi_index]])
+        s.osi.DLMAN.queue_yt([s.tracklist[s.multi_index]])
         s.wrapper.destroy()
 
     def generate(s):
         DlWidget.generate(s)  # regenerate mainframe
 
-        DLMAN.generate_image_data(s.tracklist, s.multi_index)  # appends image object and primary color to info
+        generate_image_data(s.tracklist, s.multi_index)  # appends image object and primary color to info
         curinfo = s.tracklist[s.multi_index]
 
         s.bordercolor = curinfo[5]
@@ -373,7 +530,7 @@ class YtSingle(YtLine):
         s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
                                 relief='ridge', bd=2, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
                                 highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: OSI.dl_delete(s))
+                                command=lambda: s.osi.dl_delete(s))
         s.delbutton.pack(side=RIGHT, padx=(0, 8))
         s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
                                   relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
@@ -415,10 +572,9 @@ class YtSingle(YtLine):
             s.parent.generate()
 
 
-# noinspection PyMethodParameters
 class YtMulti(YtLine):
-    def __init__(s, tracklist, plinfo):
-        YtLine.__init__(s)
+    def __init__(s, osi, tracklist, plinfo):
+        YtLine.__init__(s, osi)
         s.tracklist = tracklist
         s.plinfo = plinfo
         s.multi_index = 0  # which song to select in the tracklist
@@ -428,7 +584,7 @@ class YtMulti(YtLine):
         return "YtMulti"
 
     def ready(s):
-        DLMAN.queue_yt(s.tracklist)
+        s.osi.DLMAN.queue_yt(s.tracklist)
         s.wrapper.destroy()
 
     def generate(s):
@@ -463,21 +619,9 @@ class YtMulti(YtLine):
         s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
                                 relief='ridge', bd=2, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
                                 highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: OSI.dl_delete(s))
+                                command=lambda: s.osi.dl_delete(s))
         s.delbutton.pack(side=RIGHT, padx=(0, 8))
         s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
                                   relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
                                   highlightbackground=s.bordercolor, highlightcolor=s.bordercolor, command=s.ready)
         s.readybutton.pack(side=RIGHT, padx=(0, 8))
-
-class GpLineEmpty:  # !!! move to below music classes when done
-    def __init__(s, query):
-        s.mainframe = tk.Frame(OSI.dlframe, highlightthickness=2, highlightbackground="white")
-        s.emptylabel = tk.Label(s.mainframe, fg="#c41313", text=("NO MATCH: " + query))
-        s.emptylabel.pack(side=TOP)
-        s.mainframe.pack(side=TOP, pady=(10, 0), padx=10, fill=X)
-        root.after(3000, s.remove)
-
-    def remove(s):
-        s.mainframe.pack_forget()
-        s.mainframe.destroy()

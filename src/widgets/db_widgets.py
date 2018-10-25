@@ -1,7 +1,56 @@
 from src.settings import *
 
 import tkinter as tk
-from tkinter import END, LEFT, RIGHT, TOP, BOTTOM, CENTER, RAISED, SUNKEN, X, Y, BOTH, filedialog
+from tkinter import LEFT, RIGHT, TOP, X
+from Crypto.Cipher import AES
+
+
+# utility defs
+def db_parse_aeg_key(keys, first):
+    endkey = ""
+    for i in range(32):
+        if first:
+            endkey += (keys[i % 2] * 32)[i // 2]
+        if not first:
+            endkey += (keys[(i + 1) % 2][::-1] * 32)[i // 2]
+    return str.encode(endkey)
+
+
+def db_aeg_enc_single(key, data):
+    cipher = AES.new(key, AES.MODE_EAX)
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    return cipher.nonce + tag + ciphertext
+
+
+def db_aeg_dec_single(key, data):
+    nonce = data[:16]
+    tag = data[16:32]
+    ciphertext = data[32:]
+    cipher = AES.new(key, AES.MODE_EAX, nonce)
+    output = cipher.decrypt_and_verify(ciphertext, tag)
+    return output
+
+
+def db_aeg_enc(keys, data):
+    data = str.encode(data)
+    for i in range(DB_ENC_LEVEL):
+        data = db_aeg_enc_single(db_parse_aeg_key(keys, True), data)
+
+    for i in range(DB_ENC_LEVEL):
+        data = db_aeg_enc_single(db_parse_aeg_key(keys, False), data)
+
+    return data
+
+
+def db_aeg_dec(keys, data):
+    for i in range(DB_ENC_LEVEL):
+        data = db_aeg_dec_single(db_parse_aeg_key(keys, False), data)
+
+    for i in range(DB_ENC_LEVEL):
+        data = db_aeg_dec_single(db_parse_aeg_key(keys, True), data)
+
+    data = data.decode()
+    return data
 
 
 class DbLine:  # !!! move to below music classes when done
