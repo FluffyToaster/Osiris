@@ -846,7 +846,8 @@ class MainUI:
                     tempshow.append(title)
                     temppath.append(dbaegis.pop(0))
                     tempmap.append("aegis")
-                except:
+                except Exception as e:
+                    print(e)
                     tempshow.append("")
                     temppath.append(dbaegis.pop(0))
                     tempmap.append("aeg_wrongkey")

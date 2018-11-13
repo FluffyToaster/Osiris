@@ -2,7 +2,7 @@ from src.settings import *
 
 import tkinter as tk
 from tkinter import LEFT, RIGHT, TOP, X
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 
 
 # utility defs
