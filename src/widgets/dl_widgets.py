@@ -1,8 +1,9 @@
 from src.settings import *
 from src.utilities import *
+from src.widgets.ui_widgets import *
 
 import tkinter as tk
-from tkinter import LEFT, RIGHT, TOP, CENTER, X, Y
+from tkinter import LEFT, RIGHT, TOP, CENTER, X, Y, BOTH
 from mutagen.mp3 import EasyMP3, MP3
 from mutagen.id3 import ID3, APIC
 from io import BytesIO
@@ -262,22 +263,17 @@ class GpTrack(GpLine):
         s.albumlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, anchor="w", font=FONT_M, width=28,
                                 text=curinfo[2])
         s.albumlabel.pack(side=LEFT, padx=(10, 0))
-        s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
-                                relief='ridge', bd=2, activebackground="#c41313", activeforeground=COLOR_TEXT,
-                                highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: s.osi.dl_delete(s))
-        s.delbutton.pack(side=RIGHT, padx=(0, 8))
-        s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
-                                  relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
-                                  highlightbackground=s.bordercolor, highlightcolor=s.bordercolor, command=s.ready)
-        s.readybutton.pack(side=RIGHT, padx=(0, 8))
+        s.delbutton = HoverButton(s.mainframe, text=" X ", width=5, hover_color="#c41313",
+                                  command=lambda: s.osi.dl_delete(s))
+        s.delbutton.pack(side=RIGHT, fill=BOTH)
+        s.readybutton = HoverButton(s.mainframe, bg=COLOR_BUTTON, font=FONT_M, text="OK", width=5, command=s.ready,
+                                    hover_color="green")
+        s.readybutton.pack(side=RIGHT, fill=BOTH)
 
         if len(s.tracklist) > 1:  # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="ALT", width=5,
-                                      relief='ridge', bd=2, highlightbackground=s.bordercolor,
-                                      highlightcolor=s.bordercolor, activebackground=COLOR_BUTTON,
-                                      activeforeground=COLOR_TEXT, command=s.multipack)
-            s.multibutton.pack(side=RIGHT, padx=(0, 8))
+            s.multibutton = HoverButton(s.mainframe, bg=COLOR_BUTTON, font=FONT_M, text="ALT", width=5,
+                                        command=s.multipack)
+            s.multibutton.pack(side=RIGHT, fill=BOTH)
             s.multiframe = tk.Frame(s.wrapper,
                                     bg=s.wrapper.cget("bg"))  # indeed not packed, that is done by the multibutton
             for i in range(len(s.tracklist)):
@@ -304,9 +300,8 @@ class GpTrack(GpLine):
             s.albumlabel = tk.Label(s.mainframe, anchor="w", font=FONT_M, bg=COLOR_BUTTON, fg=COLOR_TEXT, width=35,
                                     text=info[2])
             s.albumlabel.pack(side=LEFT, padx=(10, 0))
-            s.btn = tk.Button(s.mainframe, text="S", width=2, relief='ridge', bd=2, bg=COLOR_BUTTON, fg=COLOR_TEXT,
-                              activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=s.select)
-            s.btn.pack(side=RIGHT, padx=(0, 10), pady=2)
+            s.btn = HoverButton(s.mainframe, text="S", width=3, bg=COLOR_BUTTON, command=s.select)
+            s.btn.pack(side=RIGHT, fill=BOTH)
             s.mainframe.pack(side=TOP, fill=X, padx=1, pady=(0, 1))
 
         def select(s):
@@ -371,22 +366,16 @@ class GpAlbum(GpLine):
         s.artistlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, anchor="w", font=FONT_M, width=28,
                                  text=curinfo[1])
         s.artistlabel.pack(side=LEFT, padx=(10, 0))
-        s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
-                                relief='ridge', bd=2, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
-                                highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: s.osi.dl_delete(s))
-        s.delbutton.pack(side=RIGHT, padx=(0, 8))
-        s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
-                                  relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
-                                  highlightbackground=s.bordercolor, highlightcolor=s.bordercolor, command=s.ready)
-        s.readybutton.pack(side=RIGHT, padx=(0, 8))
-
+        s.delbutton = HoverButton(s.mainframe, text=" X ", width=5, hover_color="#c41313",
+                                  command=lambda: s.osi.dl_delete(s))
+        s.delbutton.pack(side=RIGHT, fill=BOTH)
+        s.readybutton = HoverButton(s.mainframe, bg=COLOR_BUTTON, font=FONT_M, text="OK", width=5, command=s.ready,
+                                    hover_color="green")
+        s.readybutton.pack(side=RIGHT, fill=BOTH)
         if len(s.albumlist) > 1:  # if we actually have alternatives to show, make the multilist
-            s.multibutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="ALT", width=5,
-                                      relief='ridge', bd=2, highlightbackground=s.bordercolor,
-                                      highlightcolor=s.bordercolor, activebackground=COLOR_BUTTON,
-                                      activeforeground=COLOR_TEXT, command=s.multipack)
-            s.multibutton.pack(side=RIGHT, padx=(0, 8))
+            s.multibutton = HoverButton(s.mainframe, bg=COLOR_BUTTON, font=FONT_M, text="ALT", width=5,
+                                        command=s.multipack)
+            s.multibutton.pack(side=RIGHT, fill=BOTH)
             s.multiframe = tk.Frame(s.wrapper,
                                     bg=s.wrapper.cget("bg"))  # indeed not packed, that is done by the multibutton
             for i in range(len(s.albumlist)):
@@ -406,9 +395,8 @@ class GpAlbum(GpLine):
             s.artistlabel = tk.Label(s.mainframe, anchor="w", font=FONT_M, bg=COLOR_BUTTON, fg=COLOR_TEXT, width=28,
                                      text=info[1])
             s.artistlabel.pack(side=LEFT, padx=(10, 0))
-            s.btn = tk.Button(s.mainframe, text="S", width=3, relief='ridge', bd=2, bg=COLOR_BUTTON, fg=COLOR_TEXT,
-                              activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT, command=s.select)
-            s.btn.pack(side=RIGHT, padx=(0, 10), pady=2)
+            s.btn = HoverButton(s.mainframe, text="S", width=3, bg=COLOR_BUTTON, command=s.select)
+            s.btn.pack(side=RIGHT, fill=BOTH)
             s.mainframe.pack(side=TOP, fill=X, padx=1, pady=(0, 1))
 
         def select(s):
@@ -460,15 +448,12 @@ class GpPlaylist(GpLine):
         s.albumlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, anchor="w", font=FONT_M, width=12,
                                 text=curinfo[2] + " tracks")
         s.albumlabel.pack(side=LEFT, padx=(10, 0))
-        s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="X", width=3,
-                                relief='ridge', bd=2, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
-                                highlightbackground=s.bordercolor, highlightcolor=s.bordercolor,
-                                command=lambda: s.osi.dl_delete(s))
-        s.delbutton.pack(side=RIGHT, padx=(0, 8))
-        s.readybutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OK", width=3,
-                                  relief='ridge', bd=2, activebackground="green", activeforeground=COLOR_TEXT,
-                                  highlightbackground=s.bordercolor, highlightcolor=s.bordercolor, command=s.ready)
-        s.readybutton.pack(side=RIGHT, padx=(0, 8))
+        s.delbutton = HoverButton(s.mainframe, text=" X ", width=5, hover_color="#c41313",
+                                  command=lambda: s.osi.dl_delete(s))
+        s.delbutton.pack(side=RIGHT, fill=BOTH)
+        s.readybutton = HoverButton(s.mainframe, bg=COLOR_BUTTON, font=FONT_M, text="OK", width=5, command=s.ready,
+                                    hover_color="green")
+        s.readybutton.pack(side=RIGHT, fill=BOTH)
 
 
 # noinspection PyMethodParameters

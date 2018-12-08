@@ -1,11 +1,10 @@
-from src.settings import *
+from src.widgets.ui_widgets import *
 
 import tkinter as tk
 
 
 class StWidget:
-    def __init__(s, osi, key, label, col, row, s_type,
-                 altkey=None):
+    def __init__(s, osi, key, label, col, row, s_type, altkey=None):
         # internal settings key, label for user, column in stframe, row in stframe,
         # type of setting (text, bool, file, folder)
         s.osi = osi
@@ -22,19 +21,15 @@ class StWidget:
                                   width=60)
             s.curlabel.grid(column=0, row=1)
         if s_type in ["file", "folder"]:
-            s.changebutton = tk.Button(s.mainframe, text="CHANGE", bg=COLOR_BUTTON, activeforeground=COLOR_TEXT,
-                                       activebackground=COLOR_BG_3, width=10, fg=COLOR_TEXT, border=0, font=FONT_M,
-                                       command=lambda: s.osi.st_prompt_setting(key, s_type))
+            s.changebutton = HoverButton(s.mainframe, text="CHANGE", bg=COLOR_BUTTON, width=10, font=FONT_M,
+                                         command=lambda: s.osi.st_prompt_setting(key, s_type))
             s.changebutton.grid(column=1, row=0, rowspan=2, sticky="NESW")
         elif s_type == "bool":
-            s.switchbutton = tk.Button(s.mainframe, text=settings[key], bg=COLOR_BUTTON, width=10,
-                                       activeforeground=COLOR_TEXT, activebackground=COLOR_BG_3, fg=COLOR_TEXT,
-                                       border=0, font=FONT_M, command=lambda: s.osi.st_switch_setting(key))
+            s.switchbutton = HoverButton(s.mainframe, text=settings[key], bg=COLOR_BUTTON, width=10, font=FONT_M,
+                                         command=lambda: s.osi.st_switch_setting(key))
             s.switchbutton.grid(column=1, row=0)
         elif s_type == "list":
-            s.nextbutton = tk.Button(s.mainframe, text="SWITCH", bg=COLOR_BUTTON, activeforeground=COLOR_TEXT,
-                                     activebackground=COLOR_BG_3, width=10, fg=COLOR_TEXT, border=0, font=FONT_M,
-                                     command=None)
+            s.nextbutton = HoverButton(s.mainframe, text="SWITCH", bg=COLOR_BUTTON, width=10, font=FONT_M, command=None)
             s.nextbutton.configure(command=lambda: [s.osi.st_cycle_setting(key, altkey)])
             # list should include a method that does something with the setting
             # some setter, for example

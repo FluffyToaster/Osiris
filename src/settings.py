@@ -45,6 +45,7 @@ COLOR_BG_2 = "#394046"  # secondary music selection color
 COLOR_BG_3 = "#454d54"  # music selection button color
 COLOR_BUTTON = "#14161A"
 COLOR_BUTTON_ACTIVE = COLOR_BG_1
+COLOR_BUTTON_BRIGHT = "#1d1f25"
 COLOR_TEXT = "#D3D7DE"
 
 # mp settings

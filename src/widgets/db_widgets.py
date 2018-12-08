@@ -1,4 +1,4 @@
-from src.settings import *
+from src.widgets.ui_widgets import *
 
 import tkinter as tk
 from tkinter import LEFT, RIGHT, TOP, X
@@ -90,16 +90,14 @@ class DbLine:  # !!! move to below music classes when done
                 s.typelabel.configure(text="AEGIS")
             else:
                 s.typelabel.configure(text="TEXT")
-            s.delbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="DEL", width=6,
-                                    relief='ridge', bd=0, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
-                                    command=lambda: s.osi.db_interpret("d " + str(s.indexval + 1)))
+            s.delbutton = HoverButton(s.mainframe, font=FONT_M, text="DEL", width=6,
+                                      command=lambda: s.osi.db_interpret("d " + str(s.indexval + 1)))
             s.delbutton.pack(side=RIGHT)
         else:
             s.typelabel.configure(text="FOLDER")
         if s.osi.dbstate[3][s.indexval] not in ["aeg_nokey", "aeg_wrongkey"]:
-            s.openbutton = tk.Button(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=FONT_M, text="OPEN", width=6,
-                                     relief='ridge', bd=0, activebackground=COLOR_BG_1, activeforeground=COLOR_TEXT,
-                                     command=lambda: s.osi.db_interpret("o " + str(s.indexval + 1)))
+            s.openbutton = HoverButton(s.mainframe, font=FONT_M, text="OPEN", width=6,
+                                       command=lambda: s.osi.db_interpret("o " + str(s.indexval + 1)))
             s.openbutton.pack(side=RIGHT)
         s.mainframe.pack(side=TOP, fill=X, padx=1, pady=1)
         s.wrapper.pack(side=TOP, pady=(2, 0), padx=10, fill=X)

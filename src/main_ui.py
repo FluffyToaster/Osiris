@@ -1,6 +1,6 @@
 import glob
 import time
-from tkinter import BOTH, SUNKEN, RAISED, END, filedialog
+from tkinter import SUNKEN, RAISED, END, filedialog
 import subprocess
 from random import random
 import datetime
@@ -73,21 +73,11 @@ class MainUI:
         s.logoframe.pack(side=LEFT)
 
         # creating navbar buttons
-        s.mpbutton = tk.Button(s.buttonframe, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE,
-                               activeforeground=COLOR_TEXT, font=FONT_L, width=TK_BUTTON_WIDTH, text="MUSIC",
-                               command=lambda: s.select("mp"))
-        s.dbbutton = tk.Button(s.buttonframe, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE,
-                               activeforeground=COLOR_TEXT, font=FONT_L, width=TK_BUTTON_WIDTH, text="DATABASE",
-                               command=lambda: s.select("db"))
-        s.dlbutton = tk.Button(s.buttonframe, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE,
-                               activeforeground=COLOR_TEXT, font=FONT_L, width=TK_BUTTON_WIDTH, text="DOWNLOAD",
-                               command=lambda: s.select("dl"))
-        s.sebutton = tk.Button(s.buttonframe, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE,
-                               activeforeground=COLOR_TEXT, font=FONT_L, width=TK_BUTTON_WIDTH, text="SERVER STATUS",
-                               command=lambda: s.select("se"))
-        s.stbutton = tk.Button(s.buttonframe, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE,
-                               activeforeground=COLOR_TEXT, font=FONT_L, width=TK_BUTTON_WIDTH, text="SETTINGS",
-                               command=lambda: s.select("st"))
+        s.mpbutton = BasicButton(s.buttonframe, text="MUSIC", command=lambda: s.select("mp"))
+        s.dbbutton = BasicButton(s.buttonframe, text="DATABASE", command=lambda: s.select("db"))
+        s.dlbutton = BasicButton(s.buttonframe, text="DOWNLOAD", command=lambda: s.select("dl"))
+        s.sebutton = BasicButton(s.buttonframe, text="SERVER STATUS", command=lambda: s.select("se"))
+        s.stbutton = BasicButton(s.buttonframe, text="SETTINGS", command=lambda: s.select("st"))
 
         # list of buttons
         s.buttons = [s.mpbutton, s.dbbutton, s.dlbutton, s.sebutton, s.stbutton]
@@ -491,7 +481,8 @@ class MainUI:
                 try:
                     s.mp_interpret("plic")
                     s.mp_interpret("pli")
-                except:
+                except Exception as e:
+                    print(type(e))
                     pass
         elif cflag == "pldel":
             if del_text("mp pl " + user_input):
