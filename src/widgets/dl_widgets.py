@@ -178,6 +178,17 @@ def generate_image_data(tracklist, _index=None):
         return background.copy()
 
 
+def build_gp_track_path(track):
+    folderpath = settings["dldir"] + track[1] + "/" + track[2] + "/"
+    songpath = folderpath + ('00' + track[4])[-2:] + " " + track[0] + ".mp3"
+    return folderpath, songpath
+
+
+def get_gp_playlist_song_paths(pid, api):
+    search_result = api.get_shared_playlist_contents(pid)
+    return [build_gp_track_path(track)[1] for track in [gp_get_track_data(x["track"]) for x in search_result]]
+
+
 class DlWidget:  # ABSTRACT
     def __init__(s, osi):
         # root superclass constructor has the elements shared by all possible variations of downloader widget

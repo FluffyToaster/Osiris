@@ -177,8 +177,8 @@ class DownloadManager:
             (10) query
         '''
 
-        folderpath = settings["dldir"] + track[1] + "/" + track[2] + "/"
-        songpath = folderpath + ('00' + track[4])[-2:] + " " + track[0] + ".mp3"
+        folderpath, songpath = build_gp_track_path(track)
+        
         if os.path.isfile(songpath) and os.path.getsize(songpath) > 0:
             s.osi.log("OSI: Skipping (already downloaded)")
         else:

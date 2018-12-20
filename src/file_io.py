@@ -15,7 +15,7 @@ def write_to_text(writelist, section):
     try:
         start = data.index("=" + section + "=") + 1
         end = data.index("=/" + section + "=")
-    except IndexError:
+    except ValueError:
         data += ["=" + section + "="] + ["\n"] + ["=/" + section + "="]
         start = data.index("=" + section + "=") + 1
         end = data.index("=/" + section + "=")

@@ -424,12 +424,15 @@ class MainUI:
         if cflag == "s":
             newpaths = remove_duplicates(oldpaths + match_criteria(user_input, allfiles))
             s.log("OSI: Added " + str(len(match_criteria(user_input, allfiles))) + " song(s)")
+
         elif cflag == "r":
             newpaths = remove_duplicates(match_criteria(user_input, oldpaths))
             s.log("OSI: Refined to " + str(len(newpaths)) + " song(s)")
+
         elif cflag == "d":
             newpaths = [x for x in oldpaths if x not in match_criteria(user_input, oldpaths)]
             s.log("OSI: Removed " + str(len(oldpaths) - len(newpaths)) + " song(s)")
+
         elif cflag == "p":
             if user_input == "" and oldpaths != []:
                 s.mp_play(oldpaths)
@@ -439,6 +442,7 @@ class MainUI:
                         s.mp_play(match_criteria(user_input, allfiles))
                 elif len(match_criteria(user_input, oldpaths)) != 0:
                     s.mp_play(match_criteria(user_input, oldpaths))
+
         elif cflag == "gp":
             gpsongs = [x for x in allfiles if "\\GP\\" in x.replace("/", "\\")]
             gpsongs.sort(key=lambda x: os.path.getmtime(x))
@@ -447,6 +451,12 @@ class MainUI:
             else:
                 temp = -1 * int(user_input)
             newpaths = remove_duplicates(gpsongs[temp:] + oldpaths)
+
+        elif cflag == "gpsave":
+            url = user_input.split()[0]
+            playlist_paths = get_gp_playlist_song_paths(s.gpparse_url(url)[1], s.api)
+
+
         elif cflag == "bin":
             if user_input == "":
                 for i in oldpaths:
@@ -558,9 +568,9 @@ class MainUI:
 
     def mp_generate_pli(s):  # generate the playlist info widget
         # define surrounding layout (regardless of playlists)
-        s.pliwrapper.pack_propagate(0)
-        pliframe = tk.Frame(s.pliwrapper, bg=COLOR_BG_2)
-        plikeyframe = tk.Frame(pliframe, width=260, height=22, bg=COLOR_BG_2)
+
+        s.pliframe = tk.Frame(s.pliwrapper, bg=COLOR_BG_2)
+        plikeyframe = tk.Frame(s.pliframe, width=260, height=22, bg=COLOR_BG_2)
         plikeyframe.pack_propagate(0)
         plikeyframe.pack(side=TOP, fill=X, pady=(0, 1))
         plitextstring = "Name       #S  #A"
@@ -584,7 +594,8 @@ class MainUI:
 
         for i in plipllist:
             PliLine(s, i)
-        pliframe.pack(side=TOP, fill=Y, expand=True)
+        s.pliframe.pack(side=TOP, fill=Y, expand=True)
+        s.pliwrapper.pack_propagate(0)
         s.pliwrapper.place(x=630, width=266, height=TK_HEIGHT)
 
     # DATABASE DEFS ####################################################################################################
@@ -903,35 +914,8 @@ class MainUI:
 
         elif entry.startswith(("http://", "https://", "www.", "youtube.com", "play.google")):
             # if true, start parsing URL
-            # remove unnecessary prefixes
-            urlentry = entry
-            for i in ["http://", "https://", "www.", "youtube.com", "play.google", ".com", "/music/"]:
-                urlentry = urlentry.split(i)[-1]
-
-            # for GP: note that album ids start with "B" and tracks start with "T"
-            url_type = "none"
-            url_id = "-"
-            if "play.google" in entry and gplogin is not False:
-                if urlentry.startswith("m/T"):  # track URL
-                    url_id = urlentry[2:].split("?t=")[0]
-                    url_type = "gp track"
-                if urlentry.startswith("m/B"):  # album URL
-                    url_id = urlentry[2:].split("?t=")[0]
-                    url_type = "gp album"
-                if urlentry.startswith("playlist/"):
-                    url_id = urlentry[9:-6] + "=="
-                    url_type = "gp playlist"
-
-            elif "youtube" in entry:
-                if urlentry.startswith("/playlist?list="):
-                    url_id = urlentry[15:]
-                    url_type = "yt playlist"
-                if urlentry.startswith("/watch?v="):
-                    url_id = urlentry[9:]
-                    url_type = "yt track"
-            else:
-                s.log("URL parsing failed")
-            s.log("OSI: URL parsed")
+            # FROM HERE
+            url_type, url_id = s.gpparse_url(entry)
 
             if url_type == "gp track":
                 s.dl_widgets.append(GpTrack(s, [gp_get_track_data(s.api.get_track_info(url_id))]))
@@ -1006,6 +990,41 @@ class MainUI:
             s.dl_page_handler.set_page(s.dl_page + 1, len(s.dl_widgets))
         except AttributeError:
             pass # page handler not set yet, because gp is still logging in
+
+    def gpparse_url(s, url):
+        # remove unnecessary prefixes
+        entry = url
+        for i in ["http://", "https://", "www.", "youtube.com", "play.google", ".com", "/music/"]:
+            url = url.split(i)[-1]
+
+        # for GP: note that album ids start with "B" and tracks start with "T"
+        url_type = "none"
+        url_id = "-"
+        if "play.google" in entry and gplogin is not False:
+            if url.startswith("m/T"):  # track URL
+                url_id = url[2:].split("?t=")[0]
+                url_type = "gp track"
+            if url.startswith("m/B"):  # album URL
+                url_id = url[2:].split("?t=")[0]
+                url_type = "gp album"
+            if url.startswith("playlist/"):
+                url_id = url[9:-6] + "=="
+                url_type = "gp playlist"
+            if url.startswith("listen#/pl/"):
+                url_id = url[11:-6] + "=="
+                url_type = "gp playlist"
+
+        elif "youtube" in entry:
+            if url.startswith("/playlist?list="):
+                url_id = url[15:]
+                url_type = "yt playlist"
+            if url.startswith("/watch?v="):
+                url_id = url[9:]
+                url_type = "yt track"
+        else:
+            s.log("URL parsing failed")
+
+        return url_type, url_id
 
     def gpsearch_track(s, query):
         # perform search of gp database
