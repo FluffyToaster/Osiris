@@ -704,7 +704,8 @@ class MainUI:
                     matchresult = matchresult[0]
                     matchindex = s.dbstate[1].index(matchresult)
                     if os.path.isdir(s.rootdir + s.db_loc + matchresult):
-                        s.db_loc += match_criteria(comm, s.dbstate[1])[0] + "/"
+                        if not s.dbstate[2][matchindex].endswith(".aegis"):
+                            s.db_loc += match_criteria(comm, s.dbstate[1])[0] + "/"
                     else:
                         if s.dbstate[3][matchindex] == "text":
                             s.dbtitle.insert(END, matchresult)
@@ -727,7 +728,6 @@ class MainUI:
                                     s.db_loclabel.configure(
                                         text=("Editing: " + s.db_loc.rstrip(matchpath) + title + ".aegis"))
                                 except Exception as e:
-                                    print(e)
                                     s.log("OSI: Incorrect key")
                                     return
                             else:
@@ -879,7 +879,11 @@ class MainUI:
         elif entry == "dl":
             # go through all open widgets and tell them to ready
             for dl in s.dl_widgets:
-                dl.ready()
+                try:
+                    dl.wrapper.winfo_ismapped()
+                    dl.ready()
+                except tk.TclError:
+                    pass
             for dl in s.dl_widgets:
                 del s.dl_widgets[s.dl_widgets.index(dl)]
             s.DLMAN.download()
@@ -980,11 +984,15 @@ class MainUI:
                             break
                 s.dl_widgets.append(YtMulti(s, [yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
 
-        elif entry != "" and gplogin is not False:
-            # not a command or URL: default behaviour is to search GP for single track
-            search_results = s.gpsearch_track(entry)
-            if search_results is not False:
-                s.dl_widgets.append(GpTrack(s, search_results))
+        elif entry != "":
+            try:
+                if gplogin is not False:
+                    # not a command or URL: default behaviour is to search GP for single track
+                    search_results = s.gpsearch_track(entry)
+                    if search_results is not False:
+                        s.dl_widgets.append(GpTrack(s, search_results))
+            except NameError:
+                s.log("OSI: Please wait for login")
 
         # decide which dl widgets to show
         for i in s.dl_widgets:
@@ -994,7 +1002,10 @@ class MainUI:
             s.dl_widgets[i].show()
 
         # update page handler
-        s.dl_page_handler.set_page(s.dl_page + 1, len(s.dl_widgets))
+        try:
+            s.dl_page_handler.set_page(s.dl_page + 1, len(s.dl_widgets))
+        except AttributeError:
+            pass # page handler not set yet, because gp is still logging in
 
     def gpsearch_track(s, query):
         # perform search of gp database
