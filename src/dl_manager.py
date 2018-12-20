@@ -9,6 +9,7 @@ class DownloadManager:
     def __init__(s, osi):
         s.osi = osi
         s.api = None
+        s.single_progress_fraction = 0.0
         s.mainframe = tk.Frame(s.osi.dlframe, bg=COLOR_BUTTON, height=35, width=TK_PROGRESS_BAR_WIDTH)
         s.mainframe.pack_propagate(0)
         s.progress_bar_wrapper = tk.Frame(s.mainframe, bg=COLOR_BG_1)
@@ -67,10 +68,11 @@ class DownloadManager:
                 s.progress_bar_busy.configure(width=0)
             else:
                 s.progress_bar_done.configure(
-                    width=TK_PROGRESS_BAR_WIDTH * (max(0, (s.count_gpcomplete + s.count_ytcomplete - 1)) / dltotal))
-                s.progress_bar_busy.configure(width=TK_PROGRESS_BAR_WIDTH / dltotal)
+                    width=TK_PROGRESS_BAR_WIDTH * ((max(0, (s.count_gpcomplete + s.count_ytcomplete - 1)) + s.single_progress_fraction) / dltotal))
+                s.progress_bar_busy.configure(width=TK_PROGRESS_BAR_WIDTH - s.single_progress_fraction / dltotal)
             s.progress_bar_queued.configure(
                 width=TK_PROGRESS_BAR_WIDTH * (max(0, (dltotal - s.count_gpcomplete - s.count_ytcomplete)) / dltotal))
+
         else:
             s.bars_packed = False
             for i in [s.progress_bar_done, s.progress_bar_busy, s.progress_bar_queued]:
@@ -93,6 +95,7 @@ class DownloadManager:
         # process the top of the gp queue
         if s.idle and len(s.GpTracks) + len(s.yttracks) > 0:
             if len(s.GpTracks) > 0:
+                s.single_progress_fraction = 0
                 threading.Thread(target=lambda: s.gp_download(s.GpTracks.pop(0))).start()
             elif len(s.yttracks) > 0:
                 threading.Thread(target=lambda: s.yt_download(s.yttracks.pop(0))).start()
@@ -179,7 +182,7 @@ class DownloadManager:
         if os.path.isfile(songpath) and os.path.getsize(songpath) > 0:
             s.osi.log("OSI: Skipping (already downloaded)")
         else:
-            dl_url2file(str(s.api.get_stream_url(track[5])), songpath)
+            dl_url2file(str(s.api.get_stream_url(track[5])), songpath, dlman=s)
             if "albumArt.png" not in os.listdir(folderpath):
                 dl_url2file(track[3], (folderpath + "/albumArt.png"))
             dl_albumart_mp3(songpath, folderpath + "/albumArt.png")

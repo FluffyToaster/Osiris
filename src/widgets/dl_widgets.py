@@ -101,14 +101,26 @@ def gp_get_album_data(album):
             filter_(str(album.get("explicitType")))]
 
 
-def dl_url2file(url, filename):
+# download progress from
+# https://sumit-ghosh.com/articles/python-download-progress-bar/
+def dl_url2file(url, filename, dlman=None):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     # open in binary mode
     with open(filename, "wb") as wfile:
         # get request
-        response = requests.get(url)
-        # write to file
-        wfile.write(response.content)
+        response = requests.get(url, stream=True)
+        total = response.headers.get('content-length')
+        if total is None:
+            print("Total is none oops")
+        else:
+            total = int(total)
+            downloaded = 0
+            for data in response.iter_content(chunk_size=max(int(total / 10000), 1024 * 1024)):
+                downloaded += len(data)
+                wfile.write(data)
+                if dlman is not None:
+                    dlman.single_progress_fraction = downloaded / total
+                    dlman.refreshvalues()
 
 
 def dl_tagify_mp3(songpath, tinfo):
