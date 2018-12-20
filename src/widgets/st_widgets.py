@@ -16,18 +16,22 @@ class StWidget:
         s.mainframe.grid(column=col, row=row)
         s.label = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, text=label, font=FONT_M, width=60)
         s.label.grid(column=0, row=0)
+
         if s_type != "bool":
             s.curlabel = tk.Label(s.mainframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, text=settings[key], font=FONT_ITALIC,
                                   width=60)
             s.curlabel.grid(column=0, row=1)
+
         if s_type in ["file", "folder"]:
             s.changebutton = HoverButton(s.mainframe, text="CHANGE", bg=COLOR_BUTTON, width=10, font=FONT_M,
                                          command=lambda: s.osi.st_prompt_setting(key, s_type))
             s.changebutton.grid(column=1, row=0, rowspan=2, sticky="NESW")
+
         elif s_type == "bool":
             s.switchbutton = HoverButton(s.mainframe, text=settings[key], bg=COLOR_BUTTON, width=10, font=FONT_M,
                                          command=lambda: s.osi.st_switch_setting(key))
             s.switchbutton.grid(column=1, row=0)
+
         elif s_type == "list":
             s.nextbutton = HoverButton(s.mainframe, text="SWITCH", bg=COLOR_BUTTON, width=10, font=FONT_M, command=None)
             s.nextbutton.configure(command=lambda: [s.osi.st_cycle_setting(key, altkey)])
