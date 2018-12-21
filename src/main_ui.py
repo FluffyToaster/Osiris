@@ -332,13 +332,15 @@ class MainUI:
                 msg = "Close the playlist screen"
             elif cur in ["pl", "pll"]:
                 msg = "Please enter a playlist"
+            elif cur == "gprf":
+                msg = "Refresh saved GP playlists"
             elif cur == "gp":
                 msg = "Select most recent GP song"
             elif cur == "bin":
                 msg = "Send all to trash"
             elif cur.startswith("plsave "):
                 msg = "Save this as a playlist"
-            elif cur.startswith(("s ", "p ", "r ", "d ", "bin ", "gp ", "pl ", "pll ")):
+            elif cur.startswith(("s ", "p ", "r ", "d ", "bin ", "gp ", "pl ", "pll ", "gpsave ")):
                 flag = cur.split()[0]
                 comm = " ".join(cur.split()[1:])
                 if flag == "s":
@@ -360,16 +362,19 @@ class MainUI:
                     else:
                         if comm.rstrip(" ") != "":
                             msg = "Is '" + comm + "' a number, dick?"
-                if flag == "pl":
-                    if read_from_text("mp pl " + comm) is not False:
-                        msg = "Play " + str(len(read_from_text("mp pl " + comm))) + " songs"
+                if flag in ["pl", "pll"]:
+                    msg = "Play " if flag == "pl" else "Load "
+                    mpres = read_from_text("mp pl " + comm)
+                    gpres = read_from_text("gp pl " + comm)
+                    if mpres or gpres:
+                        cur = mpres if mpres else gpres[1:]
+                        msg += str(len(cur)) + " songs"
                     else:
-                        msg = "Unknown pl (try 'pli')"
-                if flag == "pll":
-                    if read_from_text("mp pl " + comm) is not False:
-                        msg = "Load " + str(len(read_from_text("mp pl " + comm))) + " songs"
-                    else:
-                        msg = "Unknown pl (try 'pli')"
+                        msg = "Not found, try 'pli'"
+                if flag == "plsave":
+                    msg = "Save the current selection as a playlist"
+                if flag == "gpsave":
+                    msg = "Save a GP playlist"
             else:
                 if len(s.music_paths) == 0:
                     msg = "Play " + str(len(match_criteria(cur, allfiles))) + " song(s)"
@@ -471,11 +476,17 @@ class MainUI:
             ]
             s.dl_widgets.append(GpPlaylist(s, [gp_get_track_data(x["track"]) for x in search_result], pl_info))
             s.dl_interpret("dl")
+            s.mp_reopen_pli()
 
         elif cflag == "gprf":
-            # TODO add syncing function
-            # TODO also, fix other pl function to work with gp synced playlists
-            pass
+            for pl in search_text("gp pl"):
+                plcont = read_from_text(pl)
+                pl = pl[6:]
+                url_id = s.gpparse_url(plcont[0])[1]
+                if get_gp_playlist_song_paths(url_id, s.api) != plcont[1:]:
+                    s.mp_interpret("pldel " + pl)
+                    s.mp_interpret("gpsave " + pl + " " + plcont[0])
+                    s.mp_reopen_pli()
 
         elif cflag == "bin":
             if user_input == "":
@@ -508,8 +519,10 @@ class MainUI:
             s.mp_page = (s.mp_page - 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
 
         elif cflag == "pl":
-            if read_from_text(str("mp pl " + user_input)) is not False:
-                s.mp_play(read_from_text(str("mp pl " + user_input)))
+            mpres = read_from_text("mp pl " + user_input)
+            gpres = read_from_text("gp pl " + user_input)
+            if mpres or gpres:
+                s.mp_play(remove_duplicates(mpres if not gpres else gpres[1:]))
 
         elif cflag == "plsave":
             if len(oldpaths) > 0:
@@ -591,8 +604,9 @@ class MainUI:
 
     def mp_reopen_pli(s):
         try:
-            s.mp_interpret("plic")
-            s.mp_interpret("pli")
+            if s.pliwrapper.winfo_ismapped():
+                s.mp_interpret("plic")
+                s.mp_interpret("pli")
         except:
             pass
 
@@ -609,7 +623,7 @@ class MainUI:
         # define surrounding layout (regardless of playlists)
 
         s.pliframe = tk.Frame(s.pliwrapper, bg=COLOR_BG_2)
-        plikeyframe = tk.Frame(s.pliframe, width=260, height=22, bg=COLOR_BG_2)
+        plikeyframe = tk.Frame(s.pliframe, width=PLI_WIDTH-6, height=22, bg=COLOR_BG_2)
         plikeyframe.pack_propagate(0)
         plikeyframe.pack(side=TOP, fill=X, pady=(0, 1))
         plitextstring = "Name       #S  #A"
@@ -636,7 +650,7 @@ class MainUI:
             PliLine(s, i)
         s.pliframe.pack(side=TOP, fill=Y, expand=True)
         s.pliwrapper.pack_propagate(0)
-        s.pliwrapper.place(x=630, width=266, height=TK_HEIGHT)
+        s.pliwrapper.place(x=1100, width=PLI_WIDTH, height=TK_HEIGHT)
 
     # DATABASE DEFS ####################################################################################################
     def db_interpret(s, entry):

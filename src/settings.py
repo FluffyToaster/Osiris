@@ -53,6 +53,7 @@ MP_PAGE_SIZE = 32  # widgets rendered on a page
 if settings["set_foobarplaying"] == "True":
     MP_PAGE_SIZE = 29
 ALLOWED_FILETYPES = [".mp3"]  # could also allows ".flac",".m4a",".wav" but would increase time to refresh
+PLI_WIDTH = 350
 
 # db settings
 DB_DIR = "database/"

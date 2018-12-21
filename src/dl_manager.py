@@ -180,7 +180,7 @@ class DownloadManager:
         folderpath, songpath = build_gp_track_path(track)
         
         if os.path.isfile(songpath) and os.path.getsize(songpath) > 0:
-            s.osi.log("OSI: Skipping (already downloaded)")
+            print("Skipping (already downloaded)")
         else:
             dl_url2file(str(s.api.get_stream_url(track[5])), songpath, dlman=s)
             if "albumArt.png" not in os.listdir(folderpath):
