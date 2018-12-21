@@ -184,8 +184,9 @@ def build_gp_track_path(track):
     return folderpath, songpath
 
 
-def get_gp_playlist_song_paths(pid, api):
-    search_result = api.get_shared_playlist_contents(pid)
+def get_gp_playlist_song_paths(pid, api, search_result=None):
+    if not search_result:
+        search_result = api.get_shared_playlist_contents(pid)
     return [build_gp_track_path(track)[1] for track in [gp_get_track_data(x["track"]) for x in search_result]]
 
 

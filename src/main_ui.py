@@ -453,9 +453,29 @@ class MainUI:
             newpaths = remove_duplicates(gpsongs[temp:] + oldpaths)
 
         elif cflag == "gpsave":
-            url = user_input.split()[0]
-            playlist_paths = get_gp_playlist_song_paths(s.gpparse_url(url)[1], s.api)
+            url = user_input.split()[-1]
+            name = user_input[:-1 * (len(url) + 1)]
 
+            url_id = s.gpparse_url(url)[1]
+            search_result = s.api.get_shared_playlist_contents(url_id)
+            playlist_paths = get_gp_playlist_song_paths(url_id, s.api, search_result)
+            write_to_text([url] + playlist_paths, "gp pl " + name)
+
+            # starting gp download manually
+            web_result = s.webapi.get_shared_playlist_info(url_id)
+            pl_info = [
+                filter_(web_result["title"]),
+                filter_(web_result["author"]),
+                str(web_result["num_tracks"]),
+                filter_(web_result["description"]),
+            ]
+            s.dl_widgets.append(GpPlaylist(s, [gp_get_track_data(x["track"]) for x in search_result], pl_info))
+            s.dl_interpret("dl")
+
+        elif cflag == "gprf":
+            # TODO add syncing function
+            # TODO also, fix other pl function to work with gp synced playlists
+            pass
 
         elif cflag == "bin":
             if user_input == "":
@@ -469,51 +489,63 @@ class MainUI:
                 newpaths = [x for x in oldpaths if x not in match_criteria(user_input, oldpaths)]
                 s.log("OSI: Sent " + str(len(oldpaths) - len(newpaths)) + " song(s) to trash")
             s.mp_refresh()  # also updates local allfiles
+
         elif cflag == "e":
             s.mp_play([])
+
         elif cflag == "c":
             newpaths = []
             s.log("OSI: Cleared selection")
+
         elif cflag == "pg":
             if is_int(user_input):
                 s.mp_page = (int(user_input) - 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
+
         elif cflag == "pgn":
             s.mp_page = (s.mp_page + 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
+
         elif cflag == "pgp":
             s.mp_page = (s.mp_page - 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
+
         elif cflag == "pl":
             if read_from_text(str("mp pl " + user_input)) is not False:
                 s.mp_play(read_from_text(str("mp pl " + user_input)))
+
         elif cflag == "plsave":
             if len(oldpaths) > 0:
                 write_to_text(oldpaths, str("mp pl " + user_input))
                 s.log("OSI: Saved playlist")
-                try:
-                    s.mp_interpret("plic")
-                    s.mp_interpret("pli")
-                except Exception as e:
-                    print(type(e))
-                    pass
+                s.mp_reopen_pli()
+
         elif cflag == "pldel":
-            if del_text("mp pl " + user_input):
+            if del_text("mp pl " + user_input) or del_text("gp pl " + user_input):
                 s.log("OSI: Playlist deleted")
+                s.mp_reopen_pli()
             else:
                 s.log("ERR: Playlist deletion failed")
+
         elif cflag == "pll":
-            if read_from_text(str("mp pl " + user_input)) is not False:
-                newpaths = remove_duplicates(oldpaths + read_from_text(str("mp pl " + user_input)))
+            mpres = read_from_text("mp pl " + user_input)
+            gpres = read_from_text("gp pl " + user_input)
+            if mpres or gpres:
+                newpaths = remove_duplicates(mpres if not gpres else gpres[1:])
                 s.log("OSI: Loaded " + user_input)
+
         elif cflag == "rf":
             s.mp_refresh()
             s.log("OSI: Refreshed library")
+
         elif cflag == "pli":  # open the playlist information window
             if not s.pliactive:
                 s.mp_generate_pli()
                 s.pliactive = True
+
         elif cflag == "plic":  # close the playlist information window
             s.pliwrapper.place_forget()
             s.pliwrapper.destroy()
+            s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON)
             s.pliactive = False
+
         else:
             if len(oldpaths) == 0:
                 if len(match_criteria(cflag + " " + user_input, allfiles)) != 0:
@@ -557,6 +589,13 @@ class MainUI:
         except:
             pass
 
+    def mp_reopen_pli(s):
+        try:
+            s.mp_interpret("plic")
+            s.mp_interpret("pli")
+        except:
+            pass
+
     def mp_update_widgets(s):  # get all the MpWidget widgets to update themselves
         for widget in s.mp_widgets:
             widget.update()
@@ -583,11 +622,12 @@ class MainUI:
         plikeydel.pack(side=RIGHT)
         # get all playlists + info
         plipllist = []  # 'playlistinfoplaylistlist' i am excellent at naming things
-        for i in search_text("mp pl "):
+        for i in search_text("mp pl ") + search_text("gp pl"):
             plipllist.append([i[6:]])  # add name
-            plipllist[-1].append(str(len(read_from_text(i))))  # add number of song(s)
-            plipllist[-1].append(str(len(remove_duplicates([x.split("/")[-1].split("\\")[1] for x in read_from_text(
-                i)]))))  # add number of artists (mildly proud that this worked in one go)
+            result = [x for x in read_from_text(i) if not x.startswith("https")]
+            plipllist[-1].append(str(len(result)))  # add number of song(s)
+
+            plipllist[-1].append(str(len(remove_duplicates([x.replace("/", "\\").split("\\")[-3] for x in result]))))
             if settings["set_pliduration"] == "True":
                 temp_length = sum([int(MP3(x).info.length) for x in read_from_text(i) if '.m4a' not in x])
                 plipllist[-1].append(str(int(temp_length // 60)) + ":" + str(int(temp_length % 60)))

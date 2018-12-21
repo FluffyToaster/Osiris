@@ -34,7 +34,7 @@ def read_from_text(section):
     try:
         start = data.index("=" + section + "=") + 1
         end = data.index("=/" + section + "=")
-    except IndexError:
+    except ValueError:
         return False
     return data[start:end]
 
@@ -43,7 +43,7 @@ def del_text(section):  # deletes a section
     data = select_file()
     try:
         data[(data.index("=" + section + "=")):(data.index("=/" + section + "=") + 1)] = []
-    except IndexError:
+    except ValueError:
         return False
     write_file = open(settings["datapath"], "w", encoding="utf-8")
     for i in data:
