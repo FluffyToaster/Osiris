@@ -118,6 +118,7 @@ class MainUI:
             s.scrollcanvas.config(yscrollcommand=s.scrollbar.set)
 
         s.contentframe = tk.Frame(s.scrollcanvas, bg=COLOR_BG_1)
+        s.contentframe.pack_propagate(0)
 
         if settings["set_scrollable"] == "False":
             s.contentframe.pack(fill=BOTH, expand=True)
@@ -130,7 +131,10 @@ class MainUI:
 
         s.mpframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
 
-        s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON)
+        #s.mp_song_frame = tk.Frame(s.mpframe, bg=COLOR_BG_1, height=TK_HEIGHT, width=TK_WIDTH)
+        #s.mp_song_frame.pack(side=LEFT)
+
+        s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON, width=PLI_WIDTH)
 
         # generate display for currently playing song
         if settings["set_foobarplaying"] == "True":
@@ -487,6 +491,7 @@ class MainUI:
                     s.mp_interpret("pldel " + pl)
                     s.mp_interpret("gpsave " + pl + " " + plcont[0])
                     s.mp_reopen_pli()
+            s.log("OSI: Refreshed GP playlists")
 
         elif cflag == "bin":
             if user_input == "":
@@ -556,7 +561,7 @@ class MainUI:
         elif cflag == "plic":  # close the playlist information window
             s.pliwrapper.place_forget()
             s.pliwrapper.destroy()
-            s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON)
+            s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON, width=PLI_WIDTH)
             s.pliactive = False
 
         else:
@@ -622,22 +627,22 @@ class MainUI:
     def mp_generate_pli(s):  # generate the playlist info widget
         # define surrounding layout (regardless of playlists)
 
-        s.pliframe = tk.Frame(s.pliwrapper, bg=COLOR_BG_2)
-        plikeyframe = tk.Frame(s.pliframe, width=PLI_WIDTH-6, height=22, bg=COLOR_BG_2)
+        s.pliframe = tk.Frame(s.pliwrapper, bg=COLOR_BG_2, height=TK_HEIGHT)
+        plikeyframe = tk.Frame(s.pliframe, width=PLI_WIDTH-6, height=32, bg=COLOR_BUTTON)
         plikeyframe.pack_propagate(0)
         plikeyframe.pack(side=TOP, fill=X, pady=(0, 1))
         plitextstring = "Name       #S  #A"
         if settings["set_pliduration"] == "True":
             plitextstring += "  Length"
-        plikey = tk.Label(plikeyframe, font=FONT_M, text=plitextstring, bg=COLOR_BG_2, fg=COLOR_TEXT)
-        plikey.pack(side=LEFT, anchor="w")
-        plikeydel = tk.Button(plikeyframe, fg=COLOR_TEXT, font=FONT_M, borderwidth=0, text="X",
-                              command=lambda: s.mp_interpret("plic"), bg=COLOR_BUTTON)
+        plikey = tk.Label(plikeyframe, font=FONT_M, text=plitextstring, bg=COLOR_BUTTON, fg=COLOR_TEXT)
+        plikey.pack(side=LEFT, anchor="w", padx=(4, 0))
+        plikeydel = HoverButton(plikeyframe, font=FONT_M, text="X", hover_color="red", width=2,
+                                command=lambda: s.mp_interpret("plic"), bg=COLOR_BUTTON)
         plikeydel.pack(side=RIGHT)
         # get all playlists + info
         plipllist = []  # 'playlistinfoplaylistlist' i am excellent at naming things
         for i in search_text("mp pl ") + search_text("gp pl"):
-            plipllist.append([i[6:]])  # add name
+            plipllist.append([i])  # add name
             result = [x for x in read_from_text(i) if not x.startswith("https")]
             plipllist[-1].append(str(len(result)))  # add number of song(s)
 
@@ -648,9 +653,9 @@ class MainUI:
 
         for i in plipllist:
             PliLine(s, i)
-        s.pliframe.pack(side=TOP, fill=Y, expand=True)
+        s.pliframe.pack(side=TOP, fill=BOTH, expand=True)
         s.pliwrapper.pack_propagate(0)
-        s.pliwrapper.place(x=1100, width=PLI_WIDTH, height=TK_HEIGHT)
+        s.pliwrapper.pack(side=RIGHT, fill=Y, padx=(10,0))
 
     # DATABASE DEFS ####################################################################################################
     def db_interpret(s, entry):

@@ -166,6 +166,9 @@ for i in bindlist:
 
 OSI.mp_page_handler = PageHandler(OSI, "mp", MP_PAGE_SIZE)
 
+if settings["set_open_pli_default"] == "True":
+    OSI.mp_interpret("pli")
+
 OSI.mp_refresh()
 
 # db
@@ -192,7 +195,8 @@ OSI.st_widgets = [StWidget(OSI, "searchdir", "Music folder", 0, 0, "folder"),
                   StWidget(OSI, "set_update", "Get updates from foobar", 0, 5, "bool"),
                   StWidget(OSI, "set_draggable", "Make window draggable with mouse", 0, 6, "bool"),
                   StWidget(OSI, "set_foobarplaying", "Show currently playing song", 1, 0, "bool"),
-                  StWidget(OSI, "hide_foobarplaying_on_pause", "Hide current song if paused", 1, 1, "bool")]
+                  StWidget(OSI, "hide_foobarplaying_on_pause", "Hide current song if paused", 1, 1, "bool"),
+                  StWidget(OSI, "set_open_pli_default", "Open playlist window on startup", 1, 2, "bool")]
 
 get_attention()
 root.mainloop()
