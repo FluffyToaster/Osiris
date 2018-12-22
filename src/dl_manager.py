@@ -1,6 +1,6 @@
 import subprocess
 import threading
-
+import time
 # third party libraries
 from src.widgets.dl_widgets import *
 
@@ -123,11 +123,11 @@ class DownloadManager:
         track[1] = get_correct_channel_name(track)
         name = settings["dldir"] + "/YouTube/" + track[1] + "/" + track[0] + ".mp3"
         os.makedirs(os.path.dirname(name), exist_ok=True)
-        if not (os.path.isfile(name)):
+        if not (os.path.isfile(name)) and not is_video_blocked(url):
             s.osi.root.after(100, lambda: s.idle_conv_watchdog(url, name, track))
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            subprocess.Popen(DL_POPEN_ARGS + [url], startupinfo=startupinfo)
+            subprocess.Popen(DL_POPEN_ARGS + ["--"] + [url], startupinfo=startupinfo)
         else:
             s.osi.log("OSI: YT DL skipped")
             s.idle = True
@@ -149,12 +149,13 @@ class DownloadManager:
                         dl_albumart_mp3(name, imagepath)
                         file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown",
                                      "Educational"]
-                        s.osi.dl_tagify_mp3(name, file_data)
+                        dl_tagify_mp3(name, file_data)
                         s.count_convtotal -= 1
                         s.refreshvalues()
                         return
-                    except:
-                        print("Rename failed, we'll get em next time")
+                    except Exception as e:
+                        print("Exception in idle converter watchdog:")
+                        print(e)
         s.refreshvalues()
         s.osi.root.after(100, lambda: s.idle_conv_watchdog(t_id, name, track, recursing))  # else, keep looking
 

@@ -62,7 +62,7 @@ DB_ENC_LEVEL = 3  # depth of Aegis AES-256 ecryption
 # dl settings
 DL_PAGE_SIZE = 13  # widgets on a page
 DL_ALTERNATIVES = 5  # number of alternatives to display when searching
-DL_CROP_THRESH = 50  # used when cropping YT thumbnails
+DL_CROP_THRESH = 25  # used when cropping YT thumbnails
 
 # arguments for subprocess Popen call when downloading from YT
 DL_POPEN_ARGS = ['youtube-dl',

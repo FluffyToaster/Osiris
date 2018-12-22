@@ -48,17 +48,16 @@ class MpWidget:
 
         # defining single song widget layout
         s.mainframe = tk.Frame(s.osi.mpframe, highlightthickness=0, width=TK_WIDTH - 20, height=28, bd=0)
-        #s.mainframe.pack_propagate(0)
         s.indexlabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=4, anchor="w",
                                 text=(("000" + str(int(s.index) + 1))[-3:]))
         s.indexlabel.pack(side=LEFT)
-        s.titlelabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=35, anchor="w", text=s.title_name)
+        s.titlelabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=45, anchor="w", text=s.title_name)
         s.titlelabel.pack(side=LEFT, padx=(0, 10))
-        s.artistlabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=30, anchor="w", text=s.artist_name)
+        s.artistlabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=25, anchor="w", text=s.artist_name)
         s.artistlabel.pack(side=LEFT, padx=(0, 10))
-        s.albumlabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=35, anchor="w", text=s.album_name)
+        s.albumlabel = tk.Label(s.mainframe, font=FONT_M, fg=COLOR_TEXT, width=38, anchor="w", text=s.album_name)
         s.albumlabel.pack(side=LEFT)
-        s.buttonframe = tk.Frame(s.mainframe, highlightthickness=0, bd=0, width=60, height=s.mainframe.cget("height"))
+        s.buttonframe = tk.Frame(s.mainframe, highlightthickness=0, bd=0, width=60, height=s.mainframe.cget("height")+1)
         s.buttonframe.pack_propagate(0)
         s.destroybutton = tk.Button(s.buttonframe, font=FONT_M, bg=COLOR_BG_3, fg=COLOR_TEXT, command=s.remove,
                                     text="X", width=2, relief="flat")

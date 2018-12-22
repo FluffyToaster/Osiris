@@ -1009,7 +1009,7 @@ class MainUI:
 
                 initial_trackres = requests.get(
                     "https://www.googleapis.com/youtube/v3/"
-                    + "playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="
+                    + "playlistItems?part=snippet,contentDetails,status&maxResults=50&playlistId="
                     + url_id + "&key=" + settings["yt_api_key"])
                 initial_trackdata = initial_trackres.json()["items"]
                 if pldata_parsed[int(2)] > 50:
@@ -1018,14 +1018,15 @@ class MainUI:
                     while 1:
                         next_trackres = requests.get(
                             "https://www.googleapis.com/youtube/v3/"
-                            + "playlistItems?part=snippet,contentDetails&maxResults=50&playlistId="
+                            + "playlistItems?part=snippet,contentDetails,status&maxResults=50&playlistId="
                             + url_id + "&pageToken=" + pagetoken + "&key=" + settings["yt_api_key"])
                         initial_trackdata += next_trackres.json()["items"]
                         try:
                             pagetoken = next_trackres.json()["nextPageToken"]
                         except:
                             break
-                s.dl_widgets.append(YtMulti(s, [yt_get_track_data(x) for x in initial_trackdata], pldata_parsed))
+                s.dl_widgets.append(YtMulti(s, [yt_get_track_data(x) for x in initial_trackdata if
+                                                x["status"]["privacyStatus"] != "private"], pldata_parsed))
 
         elif entry != "":
             try:
@@ -1066,11 +1067,8 @@ class MainUI:
             if url.startswith("m/B"):  # album URL
                 url_id = url[2:].split("?t=")[0]
                 url_type = "gp album"
-            if url.startswith("playlist/"):
-                url_id = url[9:-6] + "=="
-                url_type = "gp playlist"
-            if url.startswith("listen#/pl/"):
-                url_id = url[11:-6] + "=="
+            if "/pl/" in url or "playlist/" in url:
+                url_id = url.split("/")[-1][:-6] + "=="
                 url_type = "gp playlist"
 
         elif "youtube" in entry:

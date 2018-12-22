@@ -51,7 +51,7 @@ def findborders(image):
             break
     borderleft = col
 
-    for col in reversed(range(3 * int(imgwidth / 4), imgwidth)):  # look through bottom quarter of image
+    for col in reversed(range(3 * int(imgwidth / 4), imgwidth)):  # look through right of image
         blacks = 0
         for row in range(imgheight):
             (r, g, b) = image.getpixel((col, row))
@@ -61,6 +61,36 @@ def findborders(image):
             break
     borderright = col
     return borderleft, bordertop, borderright, borderbottom
+
+
+def remove_color_columns(image, color):
+    imgwidth, imgheight = image.size
+    limit = int((imgwidth - imgheight) / 2)
+    col = 0
+    done = False
+    for col in range(min(int(imgwidth / 2), limit)):
+        if done: break
+        for row in range(imgheight):
+            (r, g, b) = image.getpixel((col, row))
+            dist = abs(color[0] - r) + abs(color[1] - g) + abs(color[2] - b)
+            if dist > 20:
+                done = True
+                break
+    borderleft = col
+
+    col = imgwidth
+    done = False
+    for col in reversed(range(max(int(imgwidth / 2), imgwidth - limit), imgwidth)):
+        if done: break
+        for row in range(imgheight):
+            (r, g, b) = image.getpixel((col, row))
+            dist = abs(color[0] - r) + abs(color[1] - g) + abs(color[2] - b)
+            if dist > 5:
+                done = True
+                break
+    borderright = col
+
+    return borderleft, 0, borderright, imgheight
 
 
 # get the track data of a YT track
@@ -73,10 +103,33 @@ def yt_get_track_data(track):
         except (KeyError, TypeError):
             vid_id = track["id"]
 
+    for i in ["maxres", "standard", "high", "medium", "default"]:
+        try:
+            thumbnail = track["snippet"]["thumbnails"][i]["url"]
+            break
+        except Exception as e:
+            pass
+    # try:
+    #     print("thumbnail = " + thumbnail)
+    # except:
+    #     print(track["snippet"])
+
     return [filter_(str(track["snippet"]["title"])),
             filter_(str(track["snippet"]["channelTitle"])),
-            str(track["snippet"]["thumbnails"]["high"]["url"]),
+            thumbnail,
             str(vid_id)]
+
+
+def is_video_blocked(vid_id):
+    res = requests.get("https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=" + vid_id + "&key=" +
+                       settings["yt_api_key"])
+    data = res.json()["items"][0]
+    try:
+        data["contentDetails"]["regionRestriction"]
+        print("True for: " + vid_id)
+        return True
+    except:
+        return False
 
 
 def gp_get_track_data(track):
@@ -167,10 +220,15 @@ def generate_image_data(tracklist, _index=None):
         curinfo = tracklist[0]
     image = Image.open(BytesIO(requests.get(curinfo[2]).content))
     borders = findborders(image)
-    image = image.crop(borders)  # crop image to borders
+    image = image.crop(borders)  # crop image to borders, this is taken as the canon image
     maincolor = color_from_image(image)  # get the prevalent color
-    background = Image.new("RGB", (480, 480), maincolor)
-    background.paste(image, (borders[0], 60 + borders[1]))
+    image = image.crop(remove_color_columns(image, maincolor))
+    width, height = image.size
+    height_offset = int((width - height) / 2)
+    background_dim = max(width, height)
+
+    background = Image.new("RGB", (background_dim, background_dim), maincolor)
+    background.paste(image, (0, height_offset))
     if _index is not None:
         tracklist[_index].append(background.copy())
         tracklist[_index].append(maincolor)
