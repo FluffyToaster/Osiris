@@ -68,7 +68,8 @@ def remove_color_columns(image, color):
     col = 0
     done = False
     for col in range(min(int(imgwidth / 2), limit)):
-        if done: break
+        if done:
+            break
         for row in range(imgheight):
             (r, g, b) = image.getpixel((col, row))
             dist = abs(color[0] - r) + abs(color[1] - g) + abs(color[2] - b)
@@ -80,7 +81,8 @@ def remove_color_columns(image, color):
     col = imgwidth
     done = False
     for col in reversed(range(max(int(imgwidth / 2), imgwidth - limit), imgwidth)):
-        if done: break
+        if done:
+            break
         for row in range(imgheight):
             (r, g, b) = image.getpixel((col, row))
             dist = abs(color[0] - r) + abs(color[1] - g) + abs(color[2] - b)
@@ -102,16 +104,13 @@ def yt_get_track_data(track):
         except (KeyError, TypeError):
             vid_id = track["id"]
 
+    thumbnail = None
     for i in ["maxres", "standard", "high", "medium", "default"]:
         try:
             thumbnail = track["snippet"]["thumbnails"][i]["url"]
             break
         except Exception as e:
             pass
-    # try:
-    #     print("thumbnail = " + thumbnail)
-    # except:
-    #     print(track["snippet"])
 
     return [filter_(str(track["snippet"]["title"])),
             filter_(str(track["snippet"]["channelTitle"])),
@@ -124,7 +123,7 @@ def is_video_blocked(vid_id):
                        settings["yt_api_key"])
     data = res.json()["items"][0]
     try:
-        data["contentDetails"]["regionRestriction"]
+        x = data["contentDetails"]["regionRestriction"]
         print("True for: " + vid_id)
         return True
     except:

@@ -66,7 +66,17 @@ DL_CROP_THRESH = 25  # used when cropping YT thumbnails
 
 # arguments for subprocess Popen call when downloading from YT
 DL_POPEN_ARGS = ['youtube-dl',
-                 '-f', 'bestaudio/best',
-                 '-x',
-                 '--audio-format', 'mp3',
-                 '--audio-quality', '320K']
+                 '-f', 'bestaudio/best']
+
+DL_CONVERT_ARGS = [settings["ffmpegexe"],
+                   '-y',
+                   '-loglevel',
+                   '40',
+                   '-i',
+                   'PLACEHOLDER',
+                   '-vn',
+                   '-acodec',
+                   'libmp3lame',
+                   '-b:a',
+                   '320k',
+                   'PLACEHOLDER']

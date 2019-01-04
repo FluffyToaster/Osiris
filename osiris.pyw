@@ -2,11 +2,11 @@
 # note that 's.' was used instead of 'self.' because I am an ungodly bastard
 # and / or because I am lazy
 #
-# - RFK 2018 -
+# - RFK 2019 -
 
 # built-in libraries
-# import time
 # timing module: uncomment and call t_since_start() anywhere
+# import time
 # starting_time = time.time()
 # def t_since_start(): print(time.time() - starting_time)
 import os
@@ -131,6 +131,7 @@ def update():  # function that gets called every second to update assorted
 root = tk.Tk()
 OSI = MainUI(root, rootdir)
 DLMAN = DownloadManager(OSI)
+DLMAN.rootdir = (os.path.dirname(os.path.realpath(__file__)) + "/").replace("\\", "/")
 OSI.DLMAN = DLMAN
 OSI.greet()
 

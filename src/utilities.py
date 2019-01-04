@@ -70,6 +70,14 @@ def filter_chars(string_in, chars):
     return out
 
 
+def parse_duration(string_in):
+    # input format = 'hours:minutes:seconds.decimals'
+    # returns format parsed to integer number of seconds
+    out = string_in.split(".")[0] # remove decimals
+    out = list(map(int, out.split(":")))
+    return 3600 * out[0] + 60 * out[1] + out[2]
+
+
 # escape backslashes
 def escape(string):
     val = repr(string)
