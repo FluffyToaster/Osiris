@@ -4,6 +4,12 @@
 #
 # - RFK 2019 -
 
+
+# Opening note about uploading:
+# Osiris uses the unofficial gmusicapi by Simon Weber to work with Google Play Music
+# Due to
+
+
 # built-in libraries
 # timing module: uncomment and call t_since_start() anywhere
 # import time
@@ -35,7 +41,7 @@ if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
 
 # make gmusicapi shut up
-logging.disable(logging.CRITICAL)
+# logging.disable(logging.CRITICAL)
 
 # disgusting windows fuckery to make top bar disappear
 GWL_EXSTYLE = -20

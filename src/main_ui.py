@@ -6,9 +6,6 @@ from random import random
 import datetime
 from math import ceil
 
-# third party libraries
-from send2trash import send2trash
-
 # own classes
 from src.file_io import *
 from src.widgets.mp_widgets import *
@@ -48,7 +45,8 @@ class MainUI:
         s.dbstate = ["browse", [], [], []]  # mode, showlist, pathlist, maplist
         s.dbkey = []  # currently entered Aegis key
 
-        s.gppass = settings["gppass"]
+        s.gpdownloadpass = settings["gpdownloadpass"]
+        s.gpuploadpass = settings["gpuploadpass"]
 
         # start of window definition and setup
         root.title("Osiris")
@@ -340,6 +338,8 @@ class MainUI:
                 msg = "Refresh saved GP playlists"
             elif cur == "gp":
                 msg = "Select most recent GP song"
+            elif cur == "gpupload":
+                msg = "Upload "
             elif cur == "bin":
                 msg = "Send all to trash"
             elif cur.startswith("plsave "):
@@ -505,6 +505,14 @@ class MainUI:
                 newpaths = [x for x in oldpaths if x not in match_criteria(user_input, oldpaths)]
                 s.log("OSI: Sent " + str(len(oldpaths) - len(newpaths)) + " song(s) to trash")
             s.mp_refresh()  # also updates local allfiles
+
+        elif cflag == "gpupload":
+            if s.musicmanager.is_authenticated():
+                s.DLMAN.gp_upload_songs(oldpaths)
+                s.log("OSI: Uploading " + str(len(oldpaths)) + " songs")
+                s.log("OSI: (this takes a while)")
+            else:
+                s.log("OSI: Not ready, please wait")
 
         elif cflag == "e":
             s.mp_play([])
@@ -1117,26 +1125,35 @@ class MainUI:
         s.dl_widgets.pop(s.dl_widgets.index(obj)).wrapper.destroy()
 
     def db_login_gp(s):
-        from gmusicapi import Mobileclient, Webclient
-        global gplogin
+        from gmusicapi import Mobileclient, Webclient, Musicmanager
+        global gplogin, gpweblogin, gpmanagerlogin
         s.api = Mobileclient()
-        s.webapi = Webclient()
+        s.webapi = Webclient(validate=False)
+        s.musicmanager = Musicmanager()
+        gplogin, gpweblogin, gpmanagerlogin = False, False, False
+
         try:
-            gptemp = s.api.login(settings["gpemail"], s.gppass, settings["gpMAC"])
-            gptemp2 = s.webapi.login(settings["gpemail"], s.gppass)
+            gplogin = s.api.login(settings["gpdownloademail"], s.gpdownloadpass, settings["gpMAC"])
+            gpweblogin = s.webapi.login(settings["gpuploademail"], s.gpuploadpass)
+            gpmanagerlogin = s.musicmanager.login()
         except Exception as e:
             s.dlloginreq.configure(text="LOGIN FAILED")
             print(e)
             return
-        gplogin = gptemp
-        s.log("OSI: GP logged in")
         if gplogin:
+            s.log("OSI: GP DL API active")
             s.dlloginreq.pack_forget()
             s.DLMAN.api = s.api
             s.DLMAN.mainframe.pack(side=BOTTOM, fill=X, pady=(10, 0))
+        if gpweblogin:
+            s.log("OSI: GP Web API active")
+        if not gpweblogin:
+            s.log("WRN: GP Web API failed")
+        if gpmanagerlogin:
+            s.log("OSI: GP Manager API active")
+        if not gpmanagerlogin:
+            s.log("WRN: GP Manager API failed")
         s.dl_page_handler = PageHandler(s, "dl", DL_PAGE_SIZE)
-        time.sleep(1)
-        s.log("OSI: All systems nominal")
 
     # WORK DEFS ########################################################################################################
 

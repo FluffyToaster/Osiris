@@ -1,6 +1,7 @@
 import subprocess
 import threading
 import shutil
+from send2trash import send2trash
 # third party libraries
 from src.widgets.dl_widgets import *
 
@@ -184,7 +185,7 @@ class DownloadManager:
                 imagepath = "/".join(name.split("/")[:-1]) + "/" + url + ".png"
                 generate_image_data([track]).save(imagepath)
                 dl_albumart_mp3(name, imagepath)
-                file_data = [track[0], track[1], "YouTube", "", "01", "", "None", "None", "Unknown", "Educational"]
+                file_data = [track[0], "YouTube", track[1], "", "01", "", "None", "None", "Unknown", "Educational"]
                 dl_tagify_mp3(name, file_data)
                 s.count_convtotal -= 1
                 s.count_ytcomplete += 1
@@ -229,6 +230,32 @@ class DownloadManager:
                         print(e)
         s.refreshvalues()
         s.osi.root.after(100, lambda: s.idle_conv_watchdog(t_id, name, track, recursing))  # else, keep looking
+
+    def gp_upload_songs(s, paths):
+        for p in paths:
+            threading.Thread(target=lambda: s.gp_upload_mp3(p)).start()
+
+    def gp_upload_mp3(s, path):
+        audio = MP3(path, ID3=ID3)
+        name = os.path.split(path)[1]
+        tempfile = open(name + '.png', 'wb')
+        tempfile.write(audio.get('APIC:Cover').data)
+        tempfile.close()
+
+        send2trash()
+
+        # upload file, save return ids
+        ids = s.osi.musicmanager.upload([path], enable_transcoding=False, include_album_art='temp.png')
+
+        # This implementation does not use the id to change the song album art
+        # Instead a fork of gmusicapi is used which can include album art during upload
+        # An alternative version using the webapi is possible: uncomment the code below
+
+        # cur_id = list(ids[0].values())[0]
+        # s.webapi.upload_album_art(cur_id, 'temp.png')
+
+        # upload complete
+        s.osi.log("OSI: Uploaded " + name)
 
     def gp_download(s, track):  # download a single track
         s.idle = False

@@ -200,6 +200,12 @@ def dl_albumart_mp3(songpath, imagepath):
         type=3,  # 3 is for the cover image
         desc=u'Cover',
         data=open(imagepath, 'rb').read()))
+    try:
+        audio.keys()
+        audio.tags.get(APIC(mime='image/png'))
+
+    except Exception as e:
+        print(e)
     audio.save()
 
 
