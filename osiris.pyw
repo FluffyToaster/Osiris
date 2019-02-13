@@ -7,7 +7,9 @@
 
 # Opening note about uploading:
 # Osiris uses the unofficial gmusicapi by Simon Weber to work with Google Play Music
-# Due to
+# Due to problems with the deprecated, but still occasionally mandatory Webclient API...
+# ... this program uses a fork of gmusicapi for uploading, get it here:
+# pip install git+https://github.com/FluffyToaster/gmusicapi
 
 
 # built-in libraries
@@ -41,7 +43,7 @@ if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
 
 # make gmusicapi shut up
-# logging.disable(logging.CRITICAL)
+logging.disable(logging.CRITICAL)
 
 # disgusting windows fuckery to make top bar disappear
 GWL_EXSTYLE = -20

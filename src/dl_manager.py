@@ -4,7 +4,7 @@ import shutil
 from send2trash import send2trash
 # third party libraries
 from src.widgets.dl_widgets import *
-
+import time
 
 class DownloadManager:
     def __init__(s, osi):
@@ -232,30 +232,32 @@ class DownloadManager:
         s.osi.root.after(100, lambda: s.idle_conv_watchdog(t_id, name, track, recursing))  # else, keep looking
 
     def gp_upload_songs(s, paths):
-        for p in paths:
-            threading.Thread(target=lambda: s.gp_upload_mp3(p)).start()
+        threading.Thread(target=lambda: [s.gp_upload_mp3(p) for p in paths]).start()
 
     def gp_upload_mp3(s, path):
         audio = MP3(path, ID3=ID3)
-        name = os.path.split(path)[1]
+        name = os.path.split(path)[1][:-4]
         tempfile = open(name + '.png', 'wb')
         tempfile.write(audio.get('APIC:Cover').data)
         tempfile.close()
 
-        send2trash()
 
         # upload file, save return ids
-        ids = s.osi.musicmanager.upload([path], enable_transcoding=False, include_album_art='temp.png')
+        ids = s.osi.musicmanager.upload([path], enable_transcoding=False, include_album_art=name+'.png')
 
         # This implementation does not use the id to change the song album art
         # Instead a fork of gmusicapi is used which can include album art during upload
         # An alternative version using the webapi is possible: uncomment the code below
-
         # cur_id = list(ids[0].values())[0]
         # s.webapi.upload_album_art(cur_id, 'temp.png')
 
         # upload complete
-        s.osi.log("OSI: Uploaded " + name)
+        send2trash(name + '.png')
+        if len(name) > 26:
+            s.osi.log("UPL: " + name[:10] + ".." + name[-10:])
+        else:
+            s.osi.log("UPL: " + name)
+        time.sleep(4)
 
     def gp_download(s, track):  # download a single track
         s.idle = False
