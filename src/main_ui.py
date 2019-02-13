@@ -5,13 +5,17 @@ import subprocess
 from random import random
 import datetime
 from math import ceil
+import threading
 
 # own classes
 from src.file_io import *
 from src.widgets.mp_widgets import *
 from src.widgets.db_widgets import *
 from src.widgets.dl_widgets import *
+from src.widgets.su_widgets import *
 from src.page_handler import *
+
+from send2trash import send2trash
 
 
 # MAIN WINDOW DEFINITION
@@ -36,6 +40,7 @@ class MainUI:
         s.mp_widgets = []
         s.db_widgets = []
         s.dl_widgets = []
+        s.su_widgets = []
         s.st_widgets = []
 
         s.music_paths = []  # currently selected songs
@@ -51,7 +56,7 @@ class MainUI:
         # start of window definition and setup
         root.title("Osiris")
         root.resizable(0, 0)
-        s.rootframe = tk.Frame(s.root, background=COLOR_BUTTON)
+        s.rootframe = tk.Frame(s.root, bg=COLOR_BUTTON)
 
         s.mainframe = tk.Frame(s.rootframe, bg=COLOR_BUTTON)
 
@@ -74,11 +79,11 @@ class MainUI:
         s.mpbutton = BasicButton(s.buttonframe, text="MUSIC", command=lambda: s.select("mp"))
         s.dbbutton = BasicButton(s.buttonframe, text="DATABASE", command=lambda: s.select("db"))
         s.dlbutton = BasicButton(s.buttonframe, text="DOWNLOAD", command=lambda: s.select("dl"))
-        s.sebutton = BasicButton(s.buttonframe, text="SERVER STATUS", command=lambda: s.select("se"))
+        s.subutton = BasicButton(s.buttonframe, text="STATUS", command=lambda: s.select("su"))
         s.stbutton = BasicButton(s.buttonframe, text="SETTINGS", command=lambda: s.select("st"))
 
         # list of buttons
-        s.buttons = [s.mpbutton, s.dbbutton, s.dlbutton, s.sebutton, s.stbutton]
+        s.buttons = [s.mpbutton, s.dbbutton, s.dlbutton, s.subutton, s.stbutton]
 
         # pack all buttons
         for i in s.buttons:
@@ -167,7 +172,7 @@ class MainUI:
         s.glbentry.grid(column=0, row=2, sticky="WE")
         s.glbentry.focus()
 
-        s.dbframe = tk.Frame(s.contentframe, background=COLOR_BG_1)
+        s.dbframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
         s.dbinfoframe = tk.Frame(s.dbframe)
         s.db_loclabel = tk.Label(s.dbinfoframe, bg=COLOR_BG_1, fg=COLOR_TEXT, font=FONT_M, text="Browsing: " + s.db_loc)
         s.db_loclabel.pack(side=LEFT)
@@ -183,15 +188,17 @@ class MainUI:
                              insertbackground=COLOR_TEXT, fg=COLOR_TEXT, wrap="word")
         s.dbeditor.pack(padx=10, pady=5, fill=BOTH)
 
-        s.dlframe = tk.Frame(s.contentframe, background=COLOR_BG_1)
+        s.dlframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
         s.dlloginreq = tk.Label(s.dlframe, bg=COLOR_BUTTON, fg=COLOR_TEXT, font=(FONT_M[0], "25"),
                                 text="LOGGING IN, PLEASE WAIT")
         s.dlloginreq.pack(side=TOP, fill=BOTH, expand=True, padx=10, pady=10)
 
-        s.seframe = tk.Frame(s.contentframe, background=COLOR_BUTTON)
-        s.seframe.grid_propagate(0)
-
-        s.stframe = tk.Frame(s.contentframe, background=COLOR_BG_1)
+        s.suframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
+        s.su_ip_checker_frame = tk.Frame(s.suframe, bg=COLOR_BG_1)
+        s.su_ip_checker_frame.grid(column=0, row=0)
+        for ip in read_from_text("ips", settings["shareddatapath"]):
+            IpChecker(s.su_ip_checker_frame, ip)
+        s.stframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
         # key,label,col,row,type
 
         # one final thing: the log
@@ -209,12 +216,11 @@ class MainUI:
         s.responsivelabel.pack(side=LEFT)
         s.responsiveframe.grid(column=1, row=2, sticky="e")
         # main window definitions complete, now doing pre-op on the widgets
-        # list of modes for convenience
 
         # lists of things
-        s.modes = ["mp", "db", "dl", "se", "st"]
-        s.frames = [s.mpframe, s.dbframe, s.dlframe, s.seframe, s.stframe]
-        s.interpreters = [s.mp_interpret, s.db_interpret, s.dl_interpret, s.se_interpret, s.st_interpret]
+        s.modes = ["mp", "db", "dl", "su", "st"]
+        s.frames = [s.mpframe, s.dbframe, s.dlframe, s.suframe, s.stframe]
+        s.interpreters = [s.mp_interpret, s.db_interpret, s.dl_interpret, s.su_interpret, s.st_interpret]
 
         s.focuslist = [s.dbeditor, s.glbentry]
         # commence the pre-op
@@ -334,6 +340,8 @@ class MainUI:
                 msg = "Close the playlist screen"
             elif cur in ["pl", "pll"]:
                 msg = "Please enter a playlist"
+            elif cur == "ytupdate":
+                msg = "Update youtube-dl"
             elif cur == "gprf":
                 msg = "Refresh saved GP playlists"
             elif cur == "gp":
@@ -413,57 +421,56 @@ class MainUI:
 
     def mp_get_files(s):  # updates allfiles and mp playcount using osData.txt
         global allfiles
-        result = read_from_text("mp allfiles")
-        if result is not False:
-            allfiles = result
-        else:
-            s.log("OSI: OwO little fucky wucky")
-            s.log("OSI: pls restart")
-            s.log("OSI: (mp allfiles in osData.txt)")
+        allfiles = read_from_text("mp allfiles")
+        if len(allfiles) == 0:
+            s.log("OSI: Problem with " + settings["datapath"])
 
     def mp_interpret(s, entry):  # interprets the given entry command in the context of the music player
         entry = " ".join(entry.split())
-        cflag = entry.split()[0]
-        user_input = entry[len(cflag) + 1:]
+        main_command = entry.split()[0]
+        arguments = entry[len(main_command) + 1:]
         oldpaths = s.music_paths[:]
         newpaths = s.music_paths[:]
 
         # start by finding what the new desired paths are
         # also run code that doesn't influence paths, eg: playing, refreshing, saving
-        if cflag == "s":
-            newpaths = remove_duplicates(oldpaths + match_criteria(user_input, allfiles))
-            s.log("OSI: Added " + str(len(match_criteria(user_input, allfiles))) + " song(s)")
+        if main_command == "s":
+            newpaths = remove_duplicates(oldpaths + match_criteria(arguments, allfiles))
+            s.log("OSI: Added " + str(len(match_criteria(arguments, allfiles))) + " song(s)")
 
-        elif cflag == "r":
-            newpaths = remove_duplicates(match_criteria(user_input, oldpaths))
+        elif main_command == "r":
+            newpaths = remove_duplicates(match_criteria(arguments, oldpaths))
             s.log("OSI: Refined to " + str(len(newpaths)) + " song(s)")
 
-        elif cflag == "d":
-            newpaths = [x for x in oldpaths if x not in match_criteria(user_input, oldpaths)]
+        elif main_command == "d":
+            newpaths = [x for x in oldpaths if x not in match_criteria(arguments, oldpaths)]
             s.log("OSI: Removed " + str(len(oldpaths) - len(newpaths)) + " song(s)")
 
-        elif cflag == "p":
-            if user_input == "" and oldpaths != []:
+        elif main_command == "p":
+            if arguments == "" and oldpaths != []:
                 s.mp_play(oldpaths)
-            if user_input != "":
+            if arguments != "":
                 if len(oldpaths) == 0:
-                    if len(match_criteria(user_input, allfiles)) != 0:
-                        s.mp_play(match_criteria(user_input, allfiles))
-                elif len(match_criteria(user_input, oldpaths)) != 0:
-                    s.mp_play(match_criteria(user_input, oldpaths))
+                    if len(match_criteria(arguments, allfiles)) != 0:
+                        s.mp_play(match_criteria(arguments, allfiles))
+                elif len(match_criteria(arguments, oldpaths)) != 0:
+                    s.mp_play(match_criteria(arguments, oldpaths))
 
-        elif cflag == "gp":
-            gpsongs = [x for x in allfiles if "\\GP\\" in x.replace("/", "\\")]
-            gpsongs.sort(key=lambda x: os.path.getmtime(x))
-            if user_input == "":
+        elif main_command == "gp":
+            gpsongs = [x for x in allfiles if settings["dldir"].replace("/", "\\") in x.replace("/", "\\")]
+            gpsongs.sort(key=os.path.getctime)
+            if arguments == "":
                 temp = -1
             else:
-                temp = -1 * int(user_input)
+                temp = -1 * int(arguments)
             newpaths = remove_duplicates(gpsongs[temp:] + oldpaths)
 
-        elif cflag == "gpsave":
-            url = user_input.split()[-1]
-            name = user_input[:-1 * (len(url) + 1)]
+        elif main_command == "ytrefresh":
+            subprocess.Popen(["youtube-dl", "-U"])
+
+        elif main_command == "gpsave":
+            url = arguments.split()[-1]
+            name = arguments[:-1 * (len(url) + 1)]
 
             url_id = s.gpparse_url(url)[1]
             search_result = s.api.get_shared_playlist_contents(url_id)
@@ -482,8 +489,8 @@ class MainUI:
             s.dl_interpret("dl")
             s.mp_reopen_pli()
 
-        elif cflag == "gprf":
-            for pl in search_text("gp pl"):
+        elif main_command == "gprf": # TODO untested code
+            for pl in [x for x in search_text("gp pl") if arguments == "" or arguments in x]:
                 plcont = read_from_text(pl)
                 pl = pl[6:]
                 url_id = s.gpparse_url(plcont[0])[1]
@@ -493,80 +500,80 @@ class MainUI:
                     s.mp_reopen_pli()
             s.log("OSI: Refreshed GP playlists")
 
-        elif cflag == "bin":
-            if user_input == "":
+        elif main_command == "bin":
+            if arguments == "":
                 for i in oldpaths:
                     send2trash(i)
                 s.log("OSI: Sent " + str(len(oldpaths)) + " song(s) to trash")
                 newpaths = []
             else:
-                for i in remove_duplicates(match_criteria(user_input, oldpaths)):
+                for i in remove_duplicates(match_criteria(arguments, oldpaths)):
                     send2trash(i)
-                newpaths = [x for x in oldpaths if x not in match_criteria(user_input, oldpaths)]
+                newpaths = [x for x in oldpaths if x not in match_criteria(arguments, oldpaths)]
                 s.log("OSI: Sent " + str(len(oldpaths) - len(newpaths)) + " song(s) to trash")
             s.mp_refresh()  # also updates local allfiles
 
-        elif cflag == "gpupload":
+        elif main_command == "gpupload":
             if s.musicmanager.is_authenticated():
-                s.DLMAN.gp_upload_songs(oldpaths)
+                threading.Thread(target=lambda: s.DLMAN.gp_upload_songs(oldpaths)).start()
                 s.log("OSI: Uploading " + str(len(oldpaths)) + " songs")
                 s.log("OSI: (this takes a while)")
             else:
                 s.log("OSI: Not ready, please wait")
 
-        elif cflag == "e":
+        elif main_command == "e":
             s.mp_play([])
 
-        elif cflag == "c":
+        elif main_command == "c":
             newpaths = []
             s.log("OSI: Cleared selection")
 
-        elif cflag == "pg":
-            if is_int(user_input):
-                s.mp_page = (int(user_input) - 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
+        elif main_command == "pg":
+            if is_int(arguments):
+                s.mp_page = (int(arguments) - 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
 
-        elif cflag == "pgn":
+        elif main_command == "pgn":
             s.mp_page = (s.mp_page + 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
 
-        elif cflag == "pgp":
+        elif main_command == "pgp":
             s.mp_page = (s.mp_page - 1) % ceil(len(s.mp_widgets) / MP_PAGE_SIZE)
 
-        elif cflag == "pl":
-            mpres = read_from_text("mp pl " + user_input)
-            gpres = read_from_text("gp pl " + user_input)
+        elif main_command == "pl":
+            mpres = read_from_text("mp pl " + arguments)
+            gpres = read_from_text("gp pl " + arguments)
             if mpres or gpres:
                 s.mp_play(remove_duplicates(mpres if not gpres else gpres[1:]))
 
-        elif cflag == "plsave":
+        elif main_command == "plsave":
             if len(oldpaths) > 0:
-                write_to_text(oldpaths, str("mp pl " + user_input))
+                write_to_text(oldpaths, str("mp pl " + arguments))
                 s.log("OSI: Saved playlist")
                 s.mp_reopen_pli()
 
-        elif cflag == "pldel":
-            if del_text("mp pl " + user_input) or del_text("gp pl " + user_input):
+        elif main_command == "pldel":
+            if del_text("mp pl " + arguments) or del_text("gp pl " + arguments):
                 s.log("OSI: Playlist deleted")
                 s.mp_reopen_pli()
             else:
                 s.log("ERR: Playlist deletion failed")
 
-        elif cflag == "pll":
-            mpres = read_from_text("mp pl " + user_input)
-            gpres = read_from_text("gp pl " + user_input)
+        elif main_command == "pll":
+            mpres = read_from_text("mp pl " + arguments)
+            gpres = read_from_text("gp pl " + arguments)
             if mpres or gpres:
-                newpaths = remove_duplicates(mpres if not gpres else gpres[1:])
-                s.log("OSI: Loaded " + user_input)
+                newpaths += remove_duplicates(mpres if not gpres else gpres[1:])
+                s.log("OSI: Loaded " + arguments)
 
-        elif cflag == "rf":
+        elif main_command == "rf":
             s.mp_refresh()
             s.log("OSI: Refreshed library")
 
-        elif cflag == "pli":  # open the playlist information window
+        elif main_command == "pli":  # open the playlist information window
             if not s.pliactive:
                 s.mp_generate_pli()
                 s.pliactive = True
 
-        elif cflag == "plic":  # close the playlist information window
+        elif main_command == "plic":  # close the playlist information window
             s.pliwrapper.place_forget()
             s.pliwrapper.destroy()
             s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON, width=PLI_WIDTH)
@@ -574,11 +581,11 @@ class MainUI:
 
         else:
             if len(oldpaths) == 0:
-                if len(match_criteria(cflag + " " + user_input, allfiles)) != 0:
-                    s.mp_play(match_criteria(cflag + " " + user_input, allfiles))
+                if len(match_criteria(main_command + " " + arguments, allfiles)) != 0:
+                    s.mp_play(match_criteria(main_command + " " + arguments, allfiles))
             else:
-                if len(match_criteria(cflag + " " + user_input, oldpaths)) != 0:
-                    s.mp_play(match_criteria(cflag + " " + user_input, oldpaths))
+                if len(match_criteria(main_command + " " + arguments, oldpaths)) != 0:
+                    s.mp_play(match_criteria(main_command + " " + arguments, oldpaths))
 
         for i in range(len(newpaths)):
             newpaths[i] = "\\".join(newpaths[i].split("\\"))
@@ -1128,18 +1135,18 @@ class MainUI:
         from gmusicapi import Mobileclient, Webclient, Musicmanager
         global gplogin, gpweblogin, gpmanagerlogin
         s.api = Mobileclient()
-        s.webapi = Webclient(validate=False)
+        s.webapi = Webclient()
         s.musicmanager = Musicmanager()
         gplogin, gpweblogin, gpmanagerlogin = False, False, False
 
         try:
             gplogin = s.api.login(settings["gpdownloademail"], s.gpdownloadpass, settings["gpMAC"])
-            gpweblogin = s.webapi.login(settings["gpuploademail"], s.gpuploadpass)
+            gpweblogin = s.webapi.login(settings["gpdownloademail"], s.gpdownloadpass)
             gpmanagerlogin = s.musicmanager.login()
         except Exception as e:
-            s.dlloginreq.configure(text="LOGIN FAILED")
-            print(e)
-            return
+             s.dlloginreq.configure(text="LOGIN FAILED")
+             print(e)
+             return
         if gplogin:
             s.log("OSI: GP DL API active")
             s.dlloginreq.pack_forget()
@@ -1155,9 +1162,9 @@ class MainUI:
             s.log("WRN: GP Manager API failed")
         s.dl_page_handler = PageHandler(s, "dl", DL_PAGE_SIZE)
 
-    # WORK DEFS ########################################################################################################
+    # STATUS DEFS ########################################################################################################
 
-    def se_interpret(s, entry):
+    def su_interpret(s, entry):
         pass
 
     # SETTINGS DEFS ####################################################################################################

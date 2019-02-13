@@ -14,8 +14,8 @@ def import_settings(path="etc/settings.txt"):
 
 def export_settings(path="etc/settings.txt"):
     settingsfile = open(path, "w")
-    for key, value in settings.items():
-        settingsfile.write(key + " = " + value + "\n")
+    for key in sorted(settings.keys()):
+        settingsfile.write(key + " = " + settings[key] + "\n")
     settingsfile.close()
 
 
@@ -80,3 +80,5 @@ DL_CONVERT_ARGS = [settings["ffmpegexe"],
                    '-b:a',
                    '320k',
                    'PLACEHOLDER']
+
+SU_IP_HEIGHT = 25

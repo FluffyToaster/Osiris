@@ -3,7 +3,7 @@ from src.widgets.ui_widgets import *
 
 import tkinter as tk
 from tkinter import LEFT, RIGHT, TOP, X
-
+from math import floor
 
 class PliLine:
     def __init__(s, osi, info):
@@ -59,17 +59,19 @@ class MpWidget:
         s.albumlabel.pack(side=LEFT)
         s.buttonframe = tk.Frame(s.mainframe, highlightthickness=0, bd=0, width=60, height=s.mainframe.cget("height")+1)
         s.buttonframe.pack_propagate(0)
-        s.destroybutton = tk.Button(s.buttonframe, font=FONT_M, bg=COLOR_BG_3, fg=COLOR_TEXT, command=s.remove,
-                                    text="X", width=2, relief="flat")
-        s.destroybutton.pack(side=RIGHT, pady=(0, 0))
-        s.playbutton = tk.Button(s.buttonframe, font=FONT_M, bg=COLOR_BG_3, fg=COLOR_TEXT,
-                                 command=lambda: s.osi.mp_play([s.path]), text="P", width=2, relief="flat")
+        s.destroybutton = HoverButton(s.buttonframe, font=FONT_M, bg=COLOR_BG_3, command=s.remove,
+                                      text="X", width=2, hide_till_hover=False, hide_bind=s.mainframe)
+        s.destroybutton.pack(side=RIGHT, pady=(0, 0), padx=(0,0))
+        s.playbutton = HoverButton(s.buttonframe, font=FONT_M, bg=COLOR_BG_3,
+                                 command=lambda: s.osi.mp_play([s.path]), text="P", width=2,
+                                 hide_till_hover=False, hide_bind=s.mainframe)
         s.playbutton.pack(side=RIGHT, padx=(0, 0), pady=(0, 0))
         s.buttonframe.pack(side=RIGHT, pady=(0, 0))
 
         s.widgetlist = [s.mainframe, s.indexlabel, s.titlelabel, s.artistlabel, s.albumlabel, s.buttonframe]
         s.altlist = [s.destroybutton, s.playbutton]
-        if int(s.index % 2 == 0):
+
+        if int((s.index + floor(s.index / MP_PAGE_SIZE)) % 2 == 0):
             for i in s.widgetlist:
                 i.configure(bg=COLOR_BG_2)
             # for i in s.altlist:i.configure(bg=COLOR_BG_1)
@@ -90,7 +92,7 @@ class MpWidget:
         s.index = s.osi.mp_widgets.index(s)
         if temp != s.index:
             s.indexlabel.configure(text=(("00" + str(int(s.index) + 1))[-2:]))
-            if int(s.index % 2 == 0):
+            if int((s.index + floor(s.index / MP_PAGE_SIZE)) % 2 == 0):
                 for i in s.widgetlist:
                     i.configure(background=COLOR_BG_2)
             else:
