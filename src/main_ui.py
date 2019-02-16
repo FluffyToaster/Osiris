@@ -21,6 +21,13 @@ from send2trash import send2trash
 # MAIN WINDOW DEFINITION
 class MainUI:
     def __init__(s, root, root_directory):
+        """
+        Create the main Osiris window
+
+        Args:
+            root: Parent of the Osiris window, should be an instance of tk.Tk()
+            root_directory: Directory that Osiris will run in (typically the location of osiris.pyw)
+        """
         s.root = root
         s.rootdir = root_directory
         s.DLMAN = None
@@ -134,9 +141,6 @@ class MainUI:
 
         s.mpframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
 
-        #s.mp_song_frame = tk.Frame(s.mpframe, bg=COLOR_BG_1, height=TK_HEIGHT, width=TK_WIDTH)
-        #s.mp_song_frame.pack(side=LEFT)
-
         s.pliwrapper = tk.Frame(s.mpframe, bg=COLOR_BUTTON, width=PLI_WIDTH)
 
         # generate display for currently playing song
@@ -246,6 +250,9 @@ class MainUI:
 
     # GENERAL DEFS
     def attempt_minimise(s):
+        """
+        Try to minimise the window (regardless of whether it is minimised)
+        """
         if s.state != "min":
             s.root.geometry("0x0")
             s.state = "forcemin"
@@ -255,11 +262,21 @@ class MainUI:
         s.state = "min"
 
     def attempt_maximise(s):
+        """
+        Try to maximise the window (regardless of whether it is maximise)
+        """
         if s.state == "min":
             s.root.geometry(str(TK_WIDTH) + "x" + str(TK_HEIGHT) + "+0+0")
             s.state = "max"
 
-    def entrymove(s, updown):  # handles changing the contents of the entry window
+    def entrymove(s, updown):
+        """
+        Respond to a command: move the entry up or down
+        This behaviour is similar to what you find in a cmd shell: see your previous commands
+
+        Args:
+            updown: Whether to move up or down
+        """
         if s.entrypos == 0:
             s.entryhist[0] = s.glbentry.get()
         if updown == "up" and s.entrypos != len(s.entryhist) - 1:
@@ -289,25 +306,29 @@ class MainUI:
         s.loglabel.config(text="\n".join(newlog))
 
     def greet(s):
+        """
+        Construct a message based on the current time
+        """
         curhour = datetime.datetime.now().hour
         if 5 <= curhour <= 7:
-            res = "Up early, sir?"
+            res = "Up early?"
         elif 7 < curhour < 12:
-            res = "Good morning sir"
+            res = "Good morning"
         elif 12 <= curhour < 18:
-            res = "Good afternoon sir"
+            res = "Good afternoon"
         elif 18 <= curhour < 24:
-            res = "Good evening sir"
-        elif curhour < 2:
-            res = "Consider sleeping, sir"
-        elif curhour < 5:
-            res = "Bed. Now."
+            res = "Good evening"
         else:
-            res = "Time has collapsed"
-
+            res = "Good night"
         s.log("OSI: " + res)
 
     def select(s, choice):
+        """
+        Choose a new tab to switch to
+
+        Args:
+            choice:
+        """
         for i in s.frames:
             i.pack_forget()
         for i in s.buttons:
@@ -321,6 +342,10 @@ class MainUI:
         s.mode = choice
 
     def responsive(s):
+        """
+        Supply text for the feedback text label in the bottom right
+        This is based on the current text in the entry widget
+        """
         cur = s.glbentry.get()
         msg = ""
         if s.mode == "mp":
@@ -398,6 +423,9 @@ class MainUI:
         s.responsivelabel.config(text=msg)
 
     def visentry(s, command):
+        """
+        Execute a command with visible user feedback, as normal
+        """
         s.log("USR: " + command)
         s.entryhist = [''] + [command] + s.entryhist[1:]
         s.entrypos = 0
@@ -406,26 +434,49 @@ class MainUI:
 
         s.invisentry(command)
 
-    def invisentry(s, command):  # execute an entry command as normal, but without logging or adding to entry history
+    def invisentry(s, command):
+        """
+        Execute a command with no feedback to the user
+        Used for not logging private information, or to internally execute a command
+        """
         s.interpreters[s.modeindex](command)
 
-    # MUSIC DEFS #######################################################################################################
+    #   __  __  _   _  ___  ___  ___
+    #  |  \/  || | | |/ __||_ _|/ __|
+    #  | |\/| || |_| |\__ \ | || (__
+    #  |_|  |_| \___/ |___/|___|\___|
+    #
 
-    def mp_refresh(s):  # refreshes the database index in osData.txt
+    def mp_refresh(s):
+        """
+        Refresh the database index in osData.txt
+        """
         diskdata = []
         for ftype in ALLOWED_FILETYPES:
             diskdata.extend(glob.glob(settings["searchdir"] + "**/*" + ftype, recursive=True))
-
         write_to_text(diskdata, "mp allfiles")
         s.mp_get_files()
 
-    def mp_get_files(s):  # updates allfiles and mp playcount using osData.txt
+    def mp_get_files(s):
+        """
+        Update the internal list _allfiles_ with all known song paths
+        """
         global allfiles
         allfiles = read_from_text("mp allfiles")
         if len(allfiles) == 0:
             s.log("OSI: Problem with " + settings["datapath"])
 
-    def mp_interpret(s, entry):  # interprets the given entry command in the context of the music player
+    def mp_interpret(s, entry):
+        """
+        Interpret the given entry command in the context of the music player
+
+        The method presumes there is a list of currently selected songs
+        It then uses that list and the command to determine the new list of selected songs
+        Finally, it updates the song widgets to reflect this new selection
+
+        Args:
+            entry: the user command
+        """
         entry = " ".join(entry.split())
         main_command = entry.split()[0]
         arguments = entry[len(main_command) + 1:]
@@ -472,7 +523,7 @@ class MainUI:
             url = arguments.split()[-1]
             name = arguments[:-1 * (len(url) + 1)]
 
-            url_id = s.gpparse_url(url)[1]
+            url_id = s.dl_parse_url(url)[1]
             search_result = s.api.get_shared_playlist_contents(url_id)
             playlist_paths = get_gp_playlist_song_paths(url_id, s.api, search_result)
             write_to_text([url] + playlist_paths, "gp pl " + name)
@@ -493,7 +544,7 @@ class MainUI:
             for pl in [x for x in search_text("gp pl") if arguments == "" or arguments in x]:
                 plcont = read_from_text(pl)
                 pl = pl[6:]
-                url_id = s.gpparse_url(plcont[0])[1]
+                url_id = s.dl_parse_url(plcont[0])[1]
                 if get_gp_playlist_song_paths(url_id, s.api) != plcont[1:]:
                     s.mp_interpret("pldel " + pl)
                     s.mp_interpret("gpsave " + pl + " " + plcont[0])
@@ -623,6 +674,10 @@ class MainUI:
             pass
 
     def mp_reopen_pli(s):
+        """
+        Re-open the playlist information widget
+        Run this if playlists have been updated, to also visually update the list
+        """
         try:
             if s.pliwrapper.winfo_ismapped():
                 s.mp_interpret("plic")
@@ -630,18 +685,22 @@ class MainUI:
         except:
             pass
 
-    def mp_update_widgets(s):  # get all the MpWidget widgets to update themselves
+    def mp_update_widgets(s):
         for widget in s.mp_widgets:
             widget.update()
 
-    def mp_play(s, songlist):  # function to play a list of .mp3 files with foobar
-        # mpcount(songlist)
+    def mp_play(s, songlist):
+        """
+        Play the list of songs in foobar2000
+        """
         s.log("OSI: Playing " + str(len(songlist)) + " song(s)")
         subprocess.Popen([settings["foobarexe"]] + [i for i in songlist], shell=False)
 
-    def mp_generate_pli(s):  # generate the playlist info widget
-        # define surrounding layout (regardless of playlists)
-
+    def mp_generate_pli(s):
+        """
+        Generate the playlist information widget
+        """
+        # first, define surrounding layout (regardless of playlists)
         s.pliframe = tk.Frame(s.pliwrapper, bg=COLOR_BG_2, height=TK_HEIGHT)
         plikeyframe = tk.Frame(s.pliframe, width=PLI_WIDTH-6, height=32, bg=COLOR_BUTTON)
         plikeyframe.pack_propagate(0)
@@ -654,6 +713,7 @@ class MainUI:
         plikeydel = HoverButton(plikeyframe, font=FONT_M, text="X", hover_color="red", width=2,
                                 command=lambda: s.mp_interpret("plic"), bg=COLOR_BUTTON)
         plikeydel.pack(side=RIGHT)
+
         # get all playlists + info
         plipllist = []  # 'playlistinfoplaylistlist' i am excellent at naming things
         for i in search_text("mp pl ") + search_text("gp pl"):
@@ -672,8 +732,25 @@ class MainUI:
         s.pliwrapper.pack_propagate(0)
         s.pliwrapper.pack(side=RIGHT, fill=Y, padx=(10,0))
 
-    # DATABASE DEFS ####################################################################################################
+    #   ___    _  _____  _    ___    _    ___  ___
+    #  |   \  /_\|_   _|/_\  | _ )  /_\  / __|| __|
+    #  | |) |/ _ \ | | / _ \ | _ \ / _ \ \__ \| _|
+    #  |___//_/ \_\|_|/_/ \_\|___//_/ \_\|___/|___|
+    #
     def db_interpret(s, entry):
+        """
+        Interpret the given entry command in the context of the database
+
+        At any moment, the database is in one of three states:
+        - browse: the user can see the files and folder in their current directory
+        - edit: the user is editing a file, and can save and exit this file
+        - password: the user is entering passwords to unlock encrypted files
+
+        Database state and information is kept in the MainUI.dbstate variable (a list)
+
+        Args:
+            entry: the user command
+        """
         if s.dbstate[0] == "password":
             if not s.dbkey:
                 s.dbkey = [entry, ""]
@@ -687,7 +764,6 @@ class MainUI:
                     s.db_refresh()
                     s.glbentry.bind("<Return>", lambda x: s.visentry(s.glbentry.get()))
 
-        # when browsing
         elif s.dbstate[0] == "browse":
             flag = entry.split()[0]
             comm = " ".join(entry.split()[1:])
@@ -886,9 +962,12 @@ class MainUI:
         return "break" + event.char[:0]
 
     def db_refresh(s):
-        # wipe dbstate
+        """
+        Refresh the MainUI.dbstate variable, and reload all widgets
+        """
+        # reset dbstate
         s.dbstate = [s.dbstate[0], [], [], []]
-        # wipe current widgets
+        # remove current widgets
         [x.wrapper.destroy() for x in s.db_widgets]
         s.db_loclabel.configure(text="Browsing: " + s.db_loc)
         dbtotal = os.listdir(s.rootdir + s.db_loc)
@@ -942,9 +1021,29 @@ class MainUI:
             s.dbstate[3].append("text")
             s.db_widgets.append(DbLine(s, s.dbstate[2][-1], len(s.dbstate[1]) - 1))
 
-    # DOWNLOAD DEFS ####################################################################################################
+    #   ___    ___ __      __ _  _  _     ___    _    ___
+    #  |   \  / _ \\ \    / /| \| || |   / _ \  /_\  |   \
+    #  | |) || (_) |\ \/\/ / | .` || |__| (_) |/ _ \ | |) |
+    #  |___/  \___/  \_/\_/  |_|\_||____|\___//_/ \_\|___/
+    #
 
     def dl_interpret(s, entry):
+        """
+        Interpret the given entry command in the context of the downloader
+
+        This method selects downloadable elements (tracks, albums, playlists) from various sources
+        They are managed further by the DownloadManager class
+        This method can tell the DownloadManager to start downloading, all further semantics are then handled
+        by the manager
+
+        Common acronyms:
+        - GP = Google Play Music
+        - YT = Youtube
+        - DL = Download
+
+        Args:
+            entry: the user command
+        """
         s.glbentry.delete("0", len(s.glbentry.get()))  # empty the entry field
 
         if entry.startswith("d ") and is_int(entry.split()[1]):  # if entry is delete command
@@ -976,20 +1075,19 @@ class MainUI:
         elif entry.startswith("yt "): # yt single song
             query = "+".join(entry[3:].split())
             res = requests.get(
-                "https://www.googleapis.com/youtube/v3/search?part=snippet&q=" + query + "&type=video&key=" + settings[
-                    "yt_api_key"])
+                "https://www.googleapis.com/youtube/v3/search?part=snippet&q=" + query + "&type=video&key=" +
+                settings["yt_api_key"])
             data = res.json()["items"][:DL_ALTERNATIVES]
             s.dl_widgets.append(YtSingle(s, [yt_get_track_data(x) for x in data]))
 
         elif entry.startswith("album ") and gplogin is not False:
-            search_results = s.gpsearch_album(entry[6:])
+            search_results = s.dl_search_gp_album(entry[6:])
             if search_results is not False:
                 s.dl_widgets.append(GpAlbum(s, search_results))
 
         elif entry.startswith(("http://", "https://", "www.", "youtube.com", "play.google")):
             # if true, start parsing URL
-            # FROM HERE
-            url_type, url_id = s.gpparse_url(entry)
+            url_type, url_id = s.dl_parse_url(entry)
 
             if url_type == "gp track":
                 s.dl_widgets.append(GpTrack(s, [gp_get_track_data(s.api.get_track_info(url_id))]))
@@ -1047,7 +1145,7 @@ class MainUI:
             try:
                 if gplogin is not False:
                     # not a command or URL: default behaviour is to search GP for single track
-                    search_results = s.gpsearch_track(entry)
+                    search_results = s.dl_search_gp_track(entry)
                     if search_results is not False:
                         s.dl_widgets.append(GpTrack(s, search_results))
             except NameError:
@@ -1066,7 +1164,7 @@ class MainUI:
         except AttributeError:
             pass # page handler not set yet, because gp is still logging in
 
-    def gpparse_url(s, url):
+    def dl_parse_url(s, url):
         # remove unnecessary prefixes
         entry = url
         for i in ["http://", "https://", "www.", "youtube.com", "play.google", ".com", "/music/"]:
@@ -1098,8 +1196,15 @@ class MainUI:
 
         return url_type, url_id
 
-    def gpsearch_track(s, query):
-        # perform search of gp database
+    def dl_search_gp_track(s, query):
+        """
+        Search GP for a track matching this query
+        Args:
+            query: the user query
+
+        Returns:
+            A list of results, where each result is a select amount of useful data regarding that track
+        """
         try:
             results = s.api.search(query).get("song_hits", DL_ALTERNATIVES)[:DL_ALTERNATIVES]
         except IndexError:
@@ -1113,8 +1218,15 @@ class MainUI:
             curinfo[-1].append(query)
         return curinfo
 
-    def gpsearch_album(s, query):
-        # perform search of gp database
+    def dl_search_gp_album(s, query):
+        """
+        Search GP for an album matching this query
+        Args:
+            query: the user query
+
+        Returns:
+            A list of results, where each result is a select amount of useful data regarding that album
+        """
         try:
             results = s.api.search(query).get("album_hits", DL_ALTERNATIVES)[:DL_ALTERNATIVES]
         except IndexError:
@@ -1131,7 +1243,10 @@ class MainUI:
     def dl_delete(s, obj):
         s.dl_widgets.pop(s.dl_widgets.index(obj)).wrapper.destroy()
 
-    def db_login_gp(s):
+    def dl_login_gp(s):
+        """
+        Authenticate various components of the gmusicapi
+        """
         from gmusicapi import Mobileclient, Webclient, Musicmanager
         global gplogin, gpweblogin, gpmanagerlogin
         s.api = Mobileclient()
@@ -1144,9 +1259,9 @@ class MainUI:
             gpweblogin = s.webapi.login(settings["gpdownloademail"], s.gpdownloadpass)
             gpmanagerlogin = s.musicmanager.login()
         except Exception as e:
-             s.dlloginreq.configure(text="LOGIN FAILED")
-             print(e)
-             return
+            s.dlloginreq.configure(text="LOGIN FAILED")
+            print(e)
+            return
         if gplogin:
             s.log("OSI: GP DL API active")
             s.dlloginreq.pack_forget()
@@ -1162,17 +1277,37 @@ class MainUI:
             s.log("WRN: GP Manager API failed")
         s.dl_page_handler = PageHandler(s, "dl", DL_PAGE_SIZE)
 
-    # STATUS DEFS ########################################################################################################
+    #   ___  _____  _  _____  _   _  ___
+    #  / __||_   _|/_\|_   _|| | | |/ __|
+    #  \__ \  | | / _ \ | |  | |_| |\__ \
+    #  |___/  |_|/_/ \_\|_|   \___/ |___/
+    #
 
     def su_interpret(s, entry):
         pass
 
-    # SETTINGS DEFS ####################################################################################################
+    #  __      __ ___   ___  _  __
+    #  \ \    / // _ \ | _ \| |/ /
+    #   \ \/\/ /| (_) ||   /| ' <
+    #    \_/\_/  \___/ |_|_\|_|\_\
+    #
+
+    #   ___  ___  _____  _____  ___  _  _   ___  ___
+    #  / __|| __||_   _||_   _||_ _|| \| | / __|/ __|
+    #  \__ \| _|   | |    | |   | | | .` || (_ |\__ \
+    #  |___/|___|  |_|    |_|  |___||_|\_| \___||___/
+    #
 
     def st_interpret(s, entry):
         pass
 
     def st_prompt_setting(s, key, setting_type):
+        """
+        Prompt the user to update a given setting
+        Args:
+            key: the dictionary key of this setting
+            setting_type: the type of setting
+        """
         if setting_type == "file":
             newval = tk.filedialog.askopenfilename(initialdir="/".join(settings[key].split("/")[:-1]))
         elif setting_type == "folder":

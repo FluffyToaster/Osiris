@@ -12,18 +12,15 @@
 # pip install git+https://github.com/FluffyToaster/gmusicapi
 
 
+# Docstrings are in the Google standardised format, as supported by PyCharm
+# Big comment lines are from http://patorjk.com/software/taag/#p=display&h=1&f=Small&t=TEXT
+
 # built-in libraries
-# timing module: uncomment and call t_since_start() anywhere
-# import time
-# starting_time = time.time()
-# def t_since_start(): print(time.time() - starting_time)
 import os
 import logging  # used to quiet gmusicapi warnings
 
 # window fuckery libaries
 from ctypes import windll
-
-# third party libraries
 
 # establishing location and settings
 rootdir = os.path.dirname(os.path.realpath(__file__)) + "/"
@@ -85,7 +82,7 @@ def move_window(event):
         root.geometry("+" + str(event.x_root - mousex) + "+" + str(event.y_root - mousey))
 
 
-# TOP LEVEL WIBBLY WOBBLY UPDATER
+# TOP LEVEL UPDATER
 def update():  # function that gets called every second to update assorted
     try:
         # note that this function needs to be as lightweight as possible
@@ -193,7 +190,7 @@ OSI.log("OSI: MP and DB loaded")
 api = None  # this is imported asynchronously due to long delay (.6 seconds)
 webapi = None
 gplogin = False
-threading.Thread(target=OSI.db_login_gp).start()
+threading.Thread(target=OSI.dl_login_gp).start()
 
 # settings
 OSI.st_widgets = [StWidget(OSI, "searchdir", "Music folder", 0, 0, "folder"),
