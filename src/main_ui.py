@@ -87,10 +87,11 @@ class MainUI:
         s.dbbutton = BasicButton(s.buttonframe, text="DATABASE", command=lambda: s.select("db"))
         s.dlbutton = BasicButton(s.buttonframe, text="DOWNLOAD", command=lambda: s.select("dl"))
         s.subutton = BasicButton(s.buttonframe, text="STATUS", command=lambda: s.select("su"))
+        s.wkbutton = BasicButton(s.buttonframe, text="WORK", command=lambda: s.select("wk"))
         s.stbutton = BasicButton(s.buttonframe, text="SETTINGS", command=lambda: s.select("st"))
 
         # list of buttons
-        s.buttons = [s.mpbutton, s.dbbutton, s.dlbutton, s.subutton, s.stbutton]
+        s.buttons = [s.mpbutton, s.dbbutton, s.dlbutton, s.subutton, s.wkbutton, s.stbutton]
 
         # pack all buttons
         for i in s.buttons:
@@ -222,9 +223,9 @@ class MainUI:
         # main window definitions complete, now doing pre-op on the widgets
 
         # lists of things
-        s.modes = ["mp", "db", "dl", "su", "st"]
+        s.modes = ["mp", "db", "dl", "su", "wk", "st"]
         s.frames = [s.mpframe, s.dbframe, s.dlframe, s.suframe, s.stframe]
-        s.interpreters = [s.mp_interpret, s.db_interpret, s.dl_interpret, s.su_interpret, s.st_interpret]
+        s.interpreters = [s.mp_interpret, s.db_interpret, s.dl_interpret, s.su_interpret, s.wk_interpret, s.st_interpret]
 
         s.focuslist = [s.dbeditor, s.glbentry]
         # commence the pre-op
@@ -1291,6 +1292,9 @@ class MainUI:
     #   \ \/\/ /| (_) ||   /| ' <
     #    \_/\_/  \___/ |_|_\|_|\_\
     #
+
+    def wk_interpret(s, entry):
+        pass
 
     #   ___  ___  _____  _____  ___  _  _   ___  ___
     #  / __|| __||_   _||_   _||_ _|| \| | / __|/ __|
