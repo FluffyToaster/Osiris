@@ -227,7 +227,7 @@ class DownloadManager:
                         return
                     except Exception as e:
                         print("Exception in idle converter watchdog:")
-                        print(e)
+                        print("c", e)
         s.refreshvalues()
         s.osi.root.after(100, lambda: s.idle_conv_watchdog(t_id, name, track, recursing))  # else, keep looking
 

@@ -191,6 +191,7 @@ api = None  # this is imported asynchronously due to long delay (.6 seconds)
 webapi = None
 gplogin = False
 threading.Thread(target=OSI.dl_login_gp).start()
+threading.Thread(target=OSI.wk_login).start()
 
 # settings
 OSI.st_widgets = [StWidget(OSI, "searchdir", "Music folder", 0, 0, "folder"),

@@ -12,6 +12,7 @@ from src.file_io import *
 from src.widgets.mp_widgets import *
 from src.widgets.db_widgets import *
 from src.widgets.dl_widgets import *
+from src.widgets.wk_widgets import *
 from src.widgets.su_widgets import *
 from src.page_handler import *
 
@@ -59,6 +60,8 @@ class MainUI:
 
         s.gpdownloadpass = settings["gpdownloadpass"]
         s.gpuploadpass = settings["gpuploadpass"]
+
+        s.wk_checkboxes = {}
 
         # start of window definition and setup
         root.title("Osiris")
@@ -198,6 +201,8 @@ class MainUI:
                                 text="LOGGING IN, PLEASE WAIT")
         s.dlloginreq.pack(side=TOP, fill=BOTH, expand=True, padx=10, pady=10)
 
+        s.wkframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
+
         s.suframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
         s.su_ip_checker_frame = tk.Frame(s.suframe, bg=COLOR_BG_1)
         s.su_ip_checker_frame.grid(column=0, row=0)
@@ -224,7 +229,7 @@ class MainUI:
 
         # lists of things
         s.modes = ["mp", "db", "dl", "su", "wk", "st"]
-        s.frames = [s.mpframe, s.dbframe, s.dlframe, s.suframe, s.stframe]
+        s.frames = [s.mpframe, s.dbframe, s.dlframe, s.suframe, s.wkframe, s.stframe]
         s.interpreters = [s.mp_interpret, s.db_interpret, s.dl_interpret, s.su_interpret, s.wk_interpret, s.st_interpret]
 
         s.focuslist = [s.dbeditor, s.glbentry]
@@ -1003,7 +1008,7 @@ class MainUI:
                     temppath.append(dbaegis.pop(0))
                     tempmap.append("aegis")
                 except Exception as e:
-                    print(e)
+                    print("a",e)
                     tempshow.append("")
                     temppath.append(dbaegis.pop(0))
                     tempmap.append("aeg_wrongkey")
@@ -1261,7 +1266,7 @@ class MainUI:
             gpmanagerlogin = s.musicmanager.login()
         except Exception as e:
             s.dlloginreq.configure(text="LOGIN FAILED")
-            print(e)
+            print("b",e)
             return
         if gplogin:
             s.log("OSI: GP DL API active")
@@ -1295,6 +1300,25 @@ class MainUI:
 
     def wk_interpret(s, entry):
         pass
+
+    def wk_login(s):
+        """
+        Log in to the Google Keep API
+        """
+        s.keep = gkeepapi.Keep()
+        s.keep.login(settings["wkemail"], settings["wkpass"])
+        s.log("OSI: Keep API active")
+
+        s.wk_get_notes()
+
+    def wk_get_notes(s):
+        notes = s.keep.find(query="[OSI]")
+        for n in notes:
+            list = Checklist(s.wkframe)
+            s.wk_checkboxes[n.title] = []
+            for i in n.items:
+                s.wk_checkboxes[n.title].append(Checkbox(list, i))
+                print("Adding", i.text, "to list key", n.title)
 
     #   ___  ___  _____  _____  ___  _  _   ___  ___
     #  / __|| __||_   _||_   _||_ _|| \| | / __|/ __|
