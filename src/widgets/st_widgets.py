@@ -1,6 +1,7 @@
 from src.widgets.ui_widgets import *
 
 import tkinter as tk
+import os
 
 
 class StWidget:
@@ -26,6 +27,11 @@ class StWidget:
             s.changebutton = HoverButton(s.mainframe, text="CHANGE", bg=COLOR_BUTTON, width=10, font=FONT_M,
                                          command=lambda: s.osi.st_prompt_setting(key, s_type))
             s.changebutton.grid(column=1, row=0, rowspan=2, sticky="NESW")
+            # also verify that this folder/file exists
+            if not os.path.exists(settings[key]):
+                s.osi.log("WRN: Location not found:")
+                s.osi.log("  key>" + key)
+                s.osi.log("  val>" + settings[key])
 
         elif s_type == "bool":
             s.switchbutton = HoverButton(s.mainframe, text=settings[key], bg=COLOR_BUTTON, width=10, font=FONT_M,

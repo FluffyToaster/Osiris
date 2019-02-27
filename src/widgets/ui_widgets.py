@@ -8,7 +8,6 @@ class BasicButton(tk.Button):
         tk.Button.__init__(s, root, bg=COLOR_BUTTON, fg=COLOR_TEXT, borderwidth=0, activebackground=COLOR_BUTTON_ACTIVE,
                            activeforeground=COLOR_TEXT, font=font, width=width, text=text, command=command)
 
-
 class HoverButton(tk.Button):
     def __init__(s, root, text="Hover button", command=None, width=5, hover_color=COLOR_BUTTON_ACTIVE, bg=COLOR_BUTTON,
                  font=FONT_M, hide_till_hover=False, hide_bind=None):

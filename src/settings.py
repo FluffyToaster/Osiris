@@ -29,7 +29,7 @@ FONT_L = ("Roboto Mono", "11")
 FONT_ITALIC = ("Roboto Mono", "10", "italic")
 FONT_BOLD = ("Roboto Mono", "11", "bold")
 FONT_BOLD_M = ("Roboto Mono", "10", "bold")
-if settings["large_taskbar"] == "False":
+if settings["set_large_taskbar"] == "False":
     TK_HEIGHT = 1042
 else:
     TK_HEIGHT = 1030
@@ -43,10 +43,13 @@ TK_PROGRESS_BAR_WIDTH = 1594  # bit arbitrary but should not change in a 1920 wi
 COLOR_BG_1 = "#2e3338"  # color of general background
 COLOR_BG_2 = "#394046"  # secondary music selection color
 COLOR_BG_3 = "#454d54"  # music selection button color
+COLOR_BG_LIGHT = "#797F86"  # between bg 3 and the text color (for greyed out text)
 COLOR_BUTTON = "#14161A"
 COLOR_BUTTON_ACTIVE = COLOR_BG_1
 COLOR_BUTTON_BRIGHT = "#1d1f25"
 COLOR_TEXT = "#D3D7DE"
+COLOR_BG_GREEN = "#1D4624"
+COLOR_BG_RED = "#673324"
 
 # mp settings
 MP_PAGE_SIZE = 32  # widgets rendered on a page

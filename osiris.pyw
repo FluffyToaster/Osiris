@@ -197,13 +197,14 @@ threading.Thread(target=OSI.wk_login).start()
 OSI.st_widgets = [StWidget(OSI, "searchdir", "Music folder", 0, 0, "folder"),
                   StWidget(OSI, "dldir", "Download folder", 0, 1, "folder"),
                   StWidget(OSI, "foobarexe", "Foobar EXE", 0, 2, "file"),
-                  StWidget(OSI, "set_notitle", "Use own title bar instead of windows", 0, 3, "bool"),
+                  StWidget(OSI, "ffmpegexe", "FFMPEG EXE", 0, 3, "file"),
                   StWidget(OSI, "set_pliduration", "Show lengths of playlists in 'pli' menu", 0, 4, "bool"),
                   StWidget(OSI, "set_update", "Get updates from foobar", 0, 5, "bool"),
                   StWidget(OSI, "set_draggable", "Make window draggable with mouse", 0, 6, "bool"),
                   StWidget(OSI, "set_foobarplaying", "Show currently playing song", 1, 0, "bool"),
                   StWidget(OSI, "hide_foobarplaying_on_pause", "Hide current song if paused", 1, 1, "bool"),
-                  StWidget(OSI, "set_open_pli_default", "Open playlist window on startup", 1, 2, "bool")]
+                  StWidget(OSI, "set_open_pli_default", "Open playlist window on startup", 1, 2, "bool"),
+                  StWidget(OSI, "set_notitle", "Use own title bar instead of windows", 1, 3, "bool")]
 
 get_attention()
 root.mainloop()

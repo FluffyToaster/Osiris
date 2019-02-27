@@ -62,6 +62,8 @@ class MainUI:
         s.gpuploadpass = settings["gpuploadpass"]
 
         s.wk_checkboxes = {}
+        s.wk_checklists = {}
+        s.wk_buttons = {}
 
         # start of window definition and setup
         root.title("Osiris")
@@ -202,6 +204,10 @@ class MainUI:
         s.dlloginreq.pack(side=TOP, fill=BOTH, expand=True, padx=10, pady=10)
 
         s.wkframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
+        s.wk_checklist_frame = tk.Frame(s.wkframe, width=550, bg=COLOR_BUTTON)
+        s.wk_checklist_frame.pack(side="left", fill="y")
+        s.wk_checklist_title_frame = tk.Frame(s.wk_checklist_frame, bg=COLOR_BG_1, height=25)
+        s.wk_checklist_title_frame.pack(side="top", fill="y")
 
         s.suframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
         s.su_ip_checker_frame = tk.Frame(s.suframe, bg=COLOR_BG_1)
@@ -209,7 +215,6 @@ class MainUI:
         for ip in read_from_text("ips", settings["shareddatapath"]):
             IpChecker(s.su_ip_checker_frame, ip)
         s.stframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
-        # key,label,col,row,type
 
         # one final thing: the log
         s.logframe = tk.Frame(s.mainframe, width=300, bg=COLOR_BG_1)
@@ -1305,20 +1310,46 @@ class MainUI:
         """
         Log in to the Google Keep API
         """
-        s.keep = gkeepapi.Keep()
-        s.keep.login(settings["wkemail"], settings["wkpass"])
+        load = True
+        import pickle
+        if load:
+            s.keep = pickle.load(open("save.p", "rb"))
+        else:
+            s.keep = gkeepapi.Keep()
+            s.keep.login(settings["wkemail"], settings["wkpass"])
+            pickle.dump(s.keep, open("save.p", "wb"))
         s.log("OSI: Keep API active")
 
         s.wk_get_notes()
 
     def wk_get_notes(s):
-        notes = s.keep.find(query="[OSI]")
+        notes = list(s.keep.find(query="[OSI]"))
+        notes.sort(key=lambda x: x.title)
+        ctr = 0
         for n in notes:
-            list = Checklist(s.wkframe)
+            cl = Checklist(s.wk_checklist_frame)
+            s.wk_checklists[n.title] = cl
             s.wk_checkboxes[n.title] = []
+
+            btn = BasicButton(s.wk_checklist_title_frame, text=n.title.replace("[OSI]",""),
+                              command=lambda n=n: s.wk_select_note(n.title))
+            btn.pack(side="left")
+
+            s.wk_buttons[n.title] = btn
+
             for i in n.items:
-                s.wk_checkboxes[n.title].append(Checkbox(list, i))
+                s.wk_checkboxes[n.title].append(Checkbox(cl, i))
                 print("Adding", i.text, "to list key", n.title)
+
+    def wk_select_note(s, name):
+        for key, value in s.wk_checklists.items():
+            value.hide()
+
+        for key, value in s.wk_buttons.items():
+            value.configure(relief=RAISED, bg=COLOR_BUTTON)
+
+        s.wk_checklists[name].show()
+        s.wk_buttons[name].configure(relief=SUNKEN, bg=COLOR_BG_2)
 
     #   ___  ___  _____  _____  ___  _  _   ___  ___
     #  / __|| __||_   _||_   _||_ _|| \| | / __|/ __|
