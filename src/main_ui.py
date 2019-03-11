@@ -1310,7 +1310,7 @@ class MainUI:
         """
         Log in to the Google Keep API
         """
-        load = True
+        load = False
         import pickle
         if load:
             s.keep = pickle.load(open("save.p", "rb"))
@@ -1325,7 +1325,6 @@ class MainUI:
     def wk_get_notes(s):
         notes = list(s.keep.find(query="[OSI]"))
         notes.sort(key=lambda x: x.title)
-        ctr = 0
         for n in notes:
             cl = Checklist(s.wk_checklist_frame)
             s.wk_checklists[n.title] = cl
@@ -1339,7 +1338,6 @@ class MainUI:
 
             for i in n.items:
                 s.wk_checkboxes[n.title].append(Checkbox(cl, i))
-                print("Adding", i.text, "to list key", n.title)
 
     def wk_select_note(s, name):
         for key, value in s.wk_checklists.items():

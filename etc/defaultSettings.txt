@@ -1,3 +1,4 @@
+country_code = US
 set_showscrollbar = False
 gpdownloademail = placeholder@host.com
 gpuploademail = placeholder@host.com

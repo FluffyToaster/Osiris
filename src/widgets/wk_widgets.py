@@ -96,7 +96,7 @@ class Checkbox:
                     s.deadline_label.configure(text="tomorrow")
                     s.deadline_wrapper.configure(bg="green")
                 else:
-                    plural = "days late" if delta_days < -1 else " day late"
+                    plural = " days late" if delta_days < -1 else " day late"
                     s.deadline_label.configure(text=str(-1 * delta_days) + plural)
                     s.deadline_wrapper.configure(bg="red")
 

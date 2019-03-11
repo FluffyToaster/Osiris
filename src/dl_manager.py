@@ -4,6 +4,7 @@ import shutil
 from send2trash import send2trash
 # third party libraries
 from src.widgets.dl_widgets import *
+from src.utilities import *
 import time
 
 class DownloadManager:
@@ -145,6 +146,7 @@ class DownloadManager:
                             s.refreshvalues()
                         except ValueError:
                             pass
+
                 popen.stdout.close()
                 popen.wait()
 
@@ -167,17 +169,24 @@ class DownloadManager:
                 os.chdir(s.rootdir)
                 popen = subprocess.Popen(convert_args, startupinfo=startupinfo, stderr=subprocess.PIPE,
                                          universal_newlines=True, cwd=s.rootdir)
-                for stderr_line in iter(popen.stderr.readline, ""):
-                    if stderr_line.lstrip(" ").startswith("Duration") and not duration:
-                        duration = ":".join(stderr_line.split(":")[1:4]).lstrip(" ")  # hrs:mins:secs.decimals
-                        duration = parse_duration(duration)
-                    elif stderr_line.startswith("size="):
-                        new_conv = parse_duration(stderr_line.split("time=")[1].split()[0]) / duration
-                        s.single_download_fraction -= (new_conv - old_conv)
-                        s.single_progress_fraction += (new_conv - old_conv)
-                        old_conv = new_conv
-                        s.refreshvalues()
-
+                try:
+                    for stderr_line in iter(popen.stderr.readline, ""):
+                        if stderr_line.lstrip(" ").startswith("Duration") and not duration:
+                            duration = ":".join(stderr_line.split(":")[1:4]).lstrip(" ")  # hrs:mins:secs.decimals
+                            duration = parse_duration(duration)
+                        elif stderr_line.startswith("size="):
+                            new_conv = parse_duration(stderr_line.split("time=")[1].split()[0]) / duration
+                            s.single_download_fraction -= (new_conv - old_conv)
+                            s.single_progress_fraction += (new_conv - old_conv)
+                            old_conv = new_conv
+                            s.refreshvalues()
+                except Exception as e:
+                    print(type(e))
+                    s.osi.log("WRN: MP3 name encoding")
+                    s.osi.log("     DLing without progress bar")
+                    s.single_download_fraction -= 1.0
+                    s.single_progress_fraction += 1.0
+                    s.refreshvalues()
                 popen.stderr.close()
                 popen.wait()
 

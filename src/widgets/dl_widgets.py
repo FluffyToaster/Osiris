@@ -123,9 +123,9 @@ def is_video_blocked(vid_id):
                        settings["yt_api_key"])
     data = res.json()["items"][0]
     try:
-        x = data["contentDetails"]["regionRestriction"]
-        print("True for: " + vid_id)
-        return True
+        x = data["contentDetails"]["regionRestriction"]["blocked"]
+        print("Id blocked: " + vid_id)
+        return settings["country_code"] in x
     except:
         return False
 
