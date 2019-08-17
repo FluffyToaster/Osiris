@@ -174,6 +174,11 @@ class MainUI:
                 s.mpfoobarplaypause.place(x=405, y=70)
             s.mpfoobarframe.pack(side=TOP, pady=0, padx=0, fill=BOTH, expand=True)
 
+        # bind global hotkeys
+        s.lastpressed = {"<Shift_L>": -1.0, "<Shift_R>": -1.0}
+        for l in s.lastpressed.keys():
+            s.root.bind(l, lambda x, l=l: [s.lastpressed.update({l: time.time()}), s.check_last_pressed()])
+
         s.glbentry = tk.Entry(s.mainframe, font=FONT_L, bg=COLOR_BUTTON, fg=COLOR_TEXT, borderwidth=0,
                               insertbackground=COLOR_TEXT)
         s.glbentry.bind("<Return>", lambda x: s.visentry(s.glbentry.get()))
@@ -260,6 +265,15 @@ class MainUI:
         s.select("mp")  # should be the last statement in this init
 
     # GENERAL DEFS
+    def check_last_pressed(s):
+        now = time.time()
+        for k, v in s.lastpressed.items():
+            if now - v > 0.05:
+                return
+
+        passfield = tk.Entry(s.root, bg=COLOR_BUTTON, fg=COLOR_TEXT)
+        passfield.place(x=2, y=int(TK_HEIGHT / 2), width=TK_WIDTH-500)
+
     def attempt_minimise(s):
         """
         Try to minimise the window (regardless of whether it is minimised)
