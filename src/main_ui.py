@@ -67,6 +67,7 @@ class MainUI:
         s.wk_checkboxes = {}
         s.wk_checklists = {}
         s.wk_buttons = {}
+        s.wk_last_sync = -1
 
         # start of window definition and setup
         root.title("Osiris")
@@ -1420,14 +1421,8 @@ class MainUI:
         """
         Log in to the Google Keep API
         """
-        load = False
-        import pickle
-        if load:
-            s.keep = pickle.load(open("save.p", "rb"))
-        else:
-            s.keep = gkeepapi.Keep()
-            s.keep.login(settings["wkemail"], settings["wkpass"])
-            pickle.dump(s.keep, open("save.p", "wb"))
+        s.keep = gkeepapi.Keep()
+        s.keep.login(settings["wkemail"], settings["wkpass"])
         s.log("OSI: Keep API active")
 
         s.wk_get_notes()
@@ -1436,18 +1431,35 @@ class MainUI:
         notes = list(s.keep.find(query="[OSI]"))
         notes.sort(key=lambda x: x.title)
         for n in notes:
+            n
             cl = Checklist(s.wk_checklist_frame)
             s.wk_checklists[n.title] = cl
             s.wk_checkboxes[n.title] = []
 
-            btn = BasicButton(s.wk_checklist_title_frame, text=n.title.replace("[OSI]",""),
+            btn = BasicButton(s.wk_checklist_title_frame, text=n.title.replace("[OSI]", ""),
                               command=lambda n=n: s.wk_select_note(n.title))
             btn.pack(side="left")
 
             s.wk_buttons[n.title] = btn
 
+            # add element for new to-do checkboxes
+
+            new_element_frame = tk.Frame(cl.mainframe, bg=COLOR_BG_1, highlightthickness=0)
+            new_element_frame.pack(side="top", fill="both", padx=3, pady=(3, 0), anchor="w")
+            new_btn = tk.Button(new_element_frame, fg=COLOR_TEXT, bg=COLOR_BG_3, text="+",
+                                bd=0, width=2, highlightthickness=0, relief="flat",
+                                command=lambda n=n, cl=cl: s.wk_add_note(n, cl, entry.get()))
+            new_btn.pack(side="left", anchor="w")
+            entry = tk.Entry(new_element_frame, bg=COLOR_BG_1, fg=COLOR_TEXT, font=FONT_M, text="New Note")
+            entry.pack(side="left", anchor="w")
+
             for i in n.items:
-                s.wk_checkboxes[n.title].append(Checkbox(cl, i))
+                s.wk_checkboxes[n.title].append(Checkbox(cl, i, n, s))
+
+    def wk_add_note(s, list_item, checklist, name):
+        ptr = list_item.add(name)
+        s.wk_checkboxes[list_item.title].append(Checkbox(checklist, ptr, n, s))
+        s.wk_request_sync()
 
     def wk_select_note(s, name):
         for key, value in s.wk_checklists.items():
@@ -1458,6 +1470,15 @@ class MainUI:
 
         s.wk_checklists[name].show()
         s.wk_buttons[name].configure(relief=SUNKEN, bg=COLOR_BG_2)
+
+    def wk_request_sync(s):
+        s.wk_last_sync = time.time()
+        s.root.after(5000, s.wk_execute_sync)
+
+    def wk_execute_sync(s):
+        if time.time() - s.wk_last_sync >= 4.99:
+            s.keep.sync()
+
 
     #   ___  ___  _____  _____  ___  _  _   ___  ___
     #  / __|| __||_   _||_   _||_ _|| \| | / __|/ __|

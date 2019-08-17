@@ -50,54 +50,66 @@ class CheckbuttonExt(tk.Button):
             s.deselect()
         else:
             s.select()
+        s.parent.osi.wk_request_sync()
+
 
 
 class Checkbox:
-    def __init__(s, checklist, checkbox_ptr):
+    def __init__(s, checklist, checkbox_ptr, checklist_ptr, osi):
         s.checklist = checklist
         s.root = s.checklist.mainframe
         s.ptr = checkbox_ptr
+        s.checklist_ptr = checklist_ptr
+        s.osi = osi
 
         s.mainframe = tk.Frame(s.root, bg=COLOR_BG_1, highlightthickness=0)
         s.mainframe.pack(side="top", fill="x", padx=3, pady=(3,0))
 
-        s.textlabel = tk.Label(s.mainframe, text=s.ptr.text, fg=COLOR_TEXT, anchor="w", bg=COLOR_BG_1, width=80, font=FONT_M)
+        s.textlabel = tk.Label(s.mainframe, text=s.ptr.text, fg=COLOR_TEXT, anchor="w", bg=COLOR_BG_1, width=70, font=FONT_M)
 
         # assess item text for additional info: deadlines, repeats, etc
         s.deadline_wrapper = None
         s.deadline_label = None
+
+        # add delete button
+        btnwrapper = tk.Frame(s.mainframe, width=6)
+        btnwrapper.pack_propagate(0)
+        delbtn = tk.Button(btnwrapper, command=s.delete, bd=0, width=1, highlightthickness=0, relief="flat",
+                           bg="darkred", activebackground="red")
+        delbtn.pack(fill="y", expand=True)
+        btnwrapper.pack(side="right", fill="y", padx=(10, 0))
+
         # match for deadline
-        if not s.ptr.checked:
-            match = re.search("[(\[][1-9]{1,2}/[1-9]{1,2}[)\]]", s.ptr.text)
-            if match:
-                fullmatch = match.group(0)
-                day = int(fullmatch.split("/")[0][1:])
-                month = int(fullmatch.split("/")[1][:-1])
-                today = datetime.date.today()
-                deadline = datetime.date(today.year, month, day)
-                delta_days = int((deadline - today).days)
-                if delta_days < -100:
-                    delta_days += 365
-                s.deadline_wrapper = tk.Label(s.mainframe, bd=0, relief="solid")
-                s.deadline_wrapper.pack(side="right")
-                height_restrictor = tk.Frame(s.deadline_wrapper, bg=COLOR_BG_1, bd=0, height=20, width=95)
-                height_restrictor.pack_propagate(0)
-                height_restrictor.pack(pady=1, padx=1)
-                s.deadline_label = tk.Label(height_restrictor, fg=COLOR_TEXT, bg=COLOR_BG_1, font=FONT_M)
-                s.deadline_label.pack()
-                if delta_days >= 2:
-                    s.deadline_label.configure(text=str(delta_days) + " days")
-                    s.deadline_wrapper.configure(bg="green")
-                elif delta_days == 0:
-                    s.deadline_label.configure(text="today")
-                    s.deadline_wrapper.configure(bg="yellow")
-                elif delta_days == 1:
-                    s.deadline_label.configure(text="tomorrow")
-                    s.deadline_wrapper.configure(bg="green")
-                else:
-                    plural = " days late" if delta_days < -1 else " day late"
-                    s.deadline_label.configure(text=str(-1 * delta_days) + plural)
-                    s.deadline_wrapper.configure(bg="red")
+        match = re.search("[(\[][1-9]{1,2}/[1-9]{1,2}[)\]]", s.ptr.text)
+        if match:
+            fullmatch = match.group(0)
+            day = int(fullmatch.split("/")[0][1:])
+            month = int(fullmatch.split("/")[1][:-1])
+            today = datetime.date.today()
+            deadline = datetime.date(today.year, month, day)
+            delta_days = int((deadline - today).days)
+            if delta_days < -100:
+                delta_days += 365
+            s.deadline_wrapper = tk.Label(s.mainframe, bd=0, relief="solid")
+            s.deadline_wrapper.pack(side="right")
+            height_restrictor = tk.Frame(s.deadline_wrapper, bg=COLOR_BG_1, bd=0, height=20, width=95)
+            height_restrictor.pack_propagate(0)
+            height_restrictor.pack(pady=1, padx=1)
+            s.deadline_label = tk.Label(height_restrictor, fg=COLOR_TEXT, bg=COLOR_BG_1, font=FONT_M)
+            s.deadline_label.pack()
+            if delta_days >= 2:
+                s.deadline_label.configure(text=str(delta_days) + " days")
+                s.deadline_wrapper.configure(bg="green")
+            elif delta_days == 0:
+                s.deadline_label.configure(text="today")
+                s.deadline_wrapper.configure(bg="yellow")
+            elif delta_days == 1:
+                s.deadline_label.configure(text="tomorrow")
+                s.deadline_wrapper.configure(bg="green")
+            else:
+                plural = " days late" if delta_days < -1 else " day late"
+                s.deadline_label.configure(text=str(-1 * delta_days) + plural)
+                s.deadline_wrapper.configure(bg="red")
 
         s.check = CheckbuttonExt(s.mainframe, s)
         if s.ptr.checked:
@@ -112,6 +124,12 @@ class Checkbox:
 
         s.check.pack(side="left", fill="y")
         s.textlabel.pack(side="left")
+
+    def delete(s):
+        # add actual delete call
+        s.checklist_ptr.remove(s.ptr)
+        s.osi.wk_request_sync()
+        s.mainframe.pack_forget()
 
 
 
