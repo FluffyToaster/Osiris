@@ -6,6 +6,9 @@ from random import random
 import datetime
 from math import ceil
 import threading
+import json
+import socket
+from collections import OrderedDict
 
 # own classes
 from src.file_io import *
@@ -215,10 +218,12 @@ class MainUI:
         s.wk_checklist_title_frame.pack(side="top", fill="y")
 
         s.suframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
-        s.su_ip_checker_frame = tk.Frame(s.suframe, bg=COLOR_BG_1)
-        s.su_ip_checker_frame.grid(column=0, row=0)
-        for ip in read_from_text("ips", settings["shareddatapath"]):
-            IpChecker(s.su_ip_checker_frame, ip)
+        # s.su_ip_checker_frame = tk.Frame(s.suframe, bg=COLOR_BG_1)
+        # s.su_ip_checker_frame.grid(column=0, row=0)
+        # for ip in read_from_text("ips", settings["shareddatapath"]):
+        #     IpChecker(s.su_ip_checker_frame, ip)
+        s.root.after(100, s.su_setup)
+
         s.stframe = tk.Frame(s.contentframe, bg=COLOR_BG_1)
 
         # one final thing: the log
@@ -1310,6 +1315,97 @@ class MainUI:
 
     def su_interpret(s, entry):
         pass
+
+    def su_setup(s):
+        try:
+            commands = s.su_send("available", receive_after=True, settimeout=2).split("\n")
+        except (socket.timeout, ConnectionRefusedError) as e:
+            commands = None
+
+        grid_height = 2
+        root = s.suframe
+        s.su_elements = {}
+        s.su_colors = ["red", "#ffa412", "#04d900"]
+        mainframe = tk.Frame(root, bg=COLOR_BG_1)
+        mainframe.pack(side="left", fill="both", expand=True)
+
+        if not commands:
+            tk.Label(s.suframe, text="Host unresponsive (wrong IP?)", fg="red").pack(padx=50, pady=50)
+        else:
+            command_structure = OrderedDict()
+            for i in commands:
+                action = i.split()[0]
+                game = i.split()[1]
+                if game in command_structure:
+                    command_structure[game].append(action)
+                else:
+                    command_structure[game] = [action]
+            count = 0
+            for game, actions in command_structure.items():
+                wrapper = tk.Frame(mainframe, bg=COLOR_BG_1)
+                wrapper.grid(column=count // grid_height, row=count % grid_height,
+                             sticky="ew", padx=10, pady=10)
+                count += 1
+                label = tk.Label(wrapper, text=game.title(), fg=COLOR_TEXT, bg=COLOR_BG_1)
+                label.pack(side="top", anchor="w")
+                status = tk.Frame(wrapper, height=2, bg=COLOR_BG_3)
+                status.pack(side="top", pady=(0, 3), fill="x")
+                s.su_elements[game] = [wrapper, label, status]
+
+                for a in actions:
+                    btn = BasicButton(wrapper, text=a.title(), command=lambda a=a, game=game: s.su_send(a + " " + game,
+                                                                                                      1000),
+                                      width=10, font=FONT_S)
+                    if game == "minecraft" and a == "start":
+                        btn.config(command=lambda a=a, game=game: s.su_send(a + " " + game, 7500))
+                    btn.pack(side="left", padx=2)
+                    s.su_elements[game].append(btn)
+
+            grid_width = ceil(len(command_structure) / grid_height)
+
+            divider = tk.Frame(mainframe, height=2, bg=COLOR_BG_3)
+            divider.grid(row=grid_height + 1, column=0, columnspan=grid_width, sticky="ew", pady=(5, 0))
+
+            bottom_panel = tk.Frame(mainframe, bg=COLOR_BG_1)
+            bottom_panel.grid(row=grid_height + 2, column=0, columnspan=grid_width, sticky="ew")
+
+
+            refresh_btn = BasicButton(bottom_panel, text="Refresh", command=s.su_update, width=10, font=FONT_S)
+            refresh_btn.grid(row=0, column=0, padx=10, pady=(10, 0))
+
+            s.su_refresh_info = tk.Label(bottom_panel, text="Last updated", fg=COLOR_TEXT, bg=COLOR_BG_1)
+            s.su_refresh_info.grid(row=0, column=1, sticky="s")
+
+            debug_entry = tk.Entry(bottom_panel, bg=COLOR_BG_1,
+                                   bd=0, highlightthickness=0, font=("Roboto Mono", 6))
+            debug_entry.bind("<Return>", lambda x: [s.su_send(debug_entry.get()), debug_entry.delete(0, "end")])
+            debug_entry.grid(row=1, column=0, columnspan=2, sticky="ew")
+            s.su_update()
+
+    def su_update(s, loop=False):
+        infostring = s.su_send("status", receive_after=True)
+        info = json.loads(infostring)
+        for key, value in info.items():
+            s.su_elements[key][2].config(bg=s.su_colors[value])
+        s.su_refresh_info.config(text=datetime.datetime.now().strftime("Last updated %H:%M:%S"))
+        if loop:
+            s.root.after(5000, lambda: s.su_update(True))
+
+    def su_receive(s, connection, bufsize=1024):
+        return connection.recv(bufsize).decode().rstrip("0")
+
+    def su_send(s, msg, update_after=-1, receive_after=False, settimeout=0):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            if settimeout:
+                sock.settimeout(settimeout)
+            sock.connect((settings["status_host"], int(settings["status_port"])))
+            sock.sendall(msg.encode())
+            print("Command sent: " + msg)
+
+            if update_after >= 0:
+                s.root.after(update_after, s.su_update)
+            if receive_after:
+                return s.su_receive(sock)
 
     #  __      __ ___   ___  _  __
     #  \ \    / // _ \ | _ \| |/ /

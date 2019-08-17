@@ -21,3 +21,5 @@ hide_foobarplaying_on_pause = True
 searchdir = # home directory for music (should be parent of download directory)#
 set_draggable = False
 set_scrollable = False
+status_host = # IP of status server #
+status_port = # port of status server #

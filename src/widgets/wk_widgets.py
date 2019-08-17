@@ -5,7 +5,6 @@ import re
 import datetime
 
 import tkinter as tk
-from PIL import Image, ImageTk
 
 
 class Checklist:
@@ -62,7 +61,7 @@ class Checkbox:
         s.mainframe = tk.Frame(s.root, bg=COLOR_BG_1, highlightthickness=0)
         s.mainframe.pack(side="top", fill="x", padx=3, pady=(3,0))
 
-        s.textlabel = tk.Label(s.mainframe, text=s.ptr.text, fg=COLOR_TEXT, anchor="w", bg=COLOR_BG_1, width=50, font=FONT_M)
+        s.textlabel = tk.Label(s.mainframe, text=s.ptr.text, fg=COLOR_TEXT, anchor="w", bg=COLOR_BG_1, width=80, font=FONT_M)
 
         # assess item text for additional info: deadlines, repeats, etc
         s.deadline_wrapper = None
